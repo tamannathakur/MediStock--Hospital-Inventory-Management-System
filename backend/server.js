@@ -1,6 +1,7 @@
 const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
+const requestRoutes = require("./routes/requests");
 require('dotenv').config();
 
 const app = express();
@@ -20,7 +21,10 @@ app.use('/api/autoclaves', require('./routes/autoclaves'));
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/almirah', require('./routes/almirah'));
 app.use(require('./middleware/errorHandler'));
+app.use("/api/department-stock", require("./routes/departmentInventory"));
+app.use("/api/requests", requestRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));

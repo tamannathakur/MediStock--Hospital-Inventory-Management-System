@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import apiClient from "@/integrations/apiClient";
 import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,7 +89,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
         return [
           ...commonNav,
           { icon: Building2, label: "Department Stock", path: "/department-stock" },
-          { icon: Package, label: "Consumables", path: "/consumables" },
+          { icon: Package, label: "Almirah", path: "/almirah" },
           { icon: Activity, label: "Autoclaves", path: "/autoclaves" },
         ];
       case "hod":
@@ -124,7 +125,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
               <div className="rounded-lg bg-primary p-2">
                 <Activity className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">HIMS</span>
+              <span className="text-xl font-bold text-foreground">INVORA</span>
             </Link>
             
             {/* Desktop Navigation */}

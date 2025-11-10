@@ -226,11 +226,11 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                   </Card>
-                  <Card className="cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => navigate("/consumables")}>
+                  <Card className="cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => navigate("/almirah")}>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
                         <Activity className="h-4 w-4" />
-                        Consumables
+                        Almirah
                       </CardTitle>
                     </CardHeader>
                   </Card>

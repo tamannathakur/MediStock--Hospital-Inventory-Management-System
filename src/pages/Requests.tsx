@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, CheckCircle, XCircle } from "lucide-react";
 
 interface Request {
-  id: string;
+  _id: string;
   requested_by: string;
   product_id: string;
   quantity: number;
@@ -44,16 +44,21 @@ const Requests = () => {
   });
 
   useEffect(() => {
+    console.log("🟡 [Requests] useEffect triggered — checking authentication...");
     const checkAuth = async () => {
       try {
+        console.log("🔵 [Requests] Calling apiClient.getProfile()...");
         const profile = await apiClient.getProfile?.();
-        if (!profile?.id) {
+        console.log("🟢 [Requests] /auth/me response:", profile);
+        if (!profile?._id) {
+           console.warn("⚠️ [Requests] Profile is null → redirecting to /auth");
           navigate('/auth');
           return;
         }
-        setUserId(profile.id);
+        setUserId(profile._id);
         setUserRole(profile.role || '');
         setFormData(prev => ({ ...prev, department_id: profile.department_id || '' }));
+        console.log("✅ [Requests] Authenticated as:", profile.role);
         await Promise.all([fetchRequests(), fetchProducts(), fetchDepartments()]);
       } catch (err) {
         navigate('/auth');
@@ -96,11 +101,8 @@ const Requests = () => {
   const handleCreateRequest = async () => {
     try {
       // backend expects productId, quantity, reason; route is /departments/:id/request
-      await apiClient.createRequest(formData.department_id, {
-        productId: formData.product_id,
-        quantity: parseInt(formData.quantity),
-        reason: formData.notes,
-      });
+     + await apiClient.createRequest({ product: formData.product_id, quantity: parseInt(formData.quantity),
+      reason: formData.notes,});
       toast({ title: 'Request created successfully' });
       setIsDialogOpen(false);
       fetchRequests();
@@ -110,25 +112,39 @@ const Requests = () => {
     }
   };
 
-  const handleApprove = async (id: string) => {
-    try {
-      await apiClient.updateRequestStatus(id, { status: 'approved', approved_by: userId });
-      toast({ title: 'Request approved' });
-      fetchRequests();
-    } catch (err) {
-      toast({ title: 'Error approving request', description: (err as Error).message || 'Failed', variant: 'destructive' });
-    }
-  };
+ const handleApprove = async (id: string) => {
+  try {
+    await apiClient.updateRequestStatus(id, userRole);
+    toast({ title: "✅ Request approved" });
+    fetchRequests();
+  } catch (err) {
+    console.error("❌ Approval failed:", err);
+    toast({ title: "Error approving request", variant: "destructive" });
+  }
+};
+
 
   const handleReject = async (id: string) => {
-    try {
-      await apiClient.updateRequestStatus(id, { status: 'rejected', approved_by: userId });
-      toast({ title: 'Request rejected' });
-      fetchRequests();
-    } catch (err) {
-      toast({ title: 'Error rejecting request', description: (err as Error).message || 'Failed', variant: 'destructive' });
-    }
-  };
+  try {
+    await apiClient.rejectRequest(id, userRole);
+    toast({ title: "❌ Request rejected" });
+    fetchRequests();
+  } catch (err) {
+    console.error("❌ Reject failed:", err);
+    toast({ title: "Error rejecting request", variant: "destructive" });
+  }
+};
+
+const handleApproveInventory = async (id: string) => {
+  try {
+    await apiClient.approveInventoryRequest(id); // call backend route for inventory staff approval
+    toast({ title: "✅ Request approved and sent by inventory staff" });
+    fetchRequests();
+  } catch (err) {
+    console.error("❌ Inventory approval failed:", err);
+    toast({ title: "Error approving request", variant: "destructive" });
+  }
+};
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -157,52 +173,53 @@ const Requests = () => {
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Request</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Product</Label>
-                  <Select value={formData.product_id} onValueChange={(v) => setFormData({ ...formData, product_id: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Quantity</Label>
-                  <Input type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Request Level</Label>
-                  <Select value={formData.request_level} onValueChange={(v) => setFormData({ ...formData, request_level: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="department">Department</SelectItem>
-                      <SelectItem value="central">Central</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
-                </div>
-                <Button onClick={handleCreateRequest} className="w-full">Create Request</Button>
-              </div>
-            </DialogContent>
+  <DialogHeader>
+    <DialogTitle>Create New Request</DialogTitle>
+  </DialogHeader>
+  <div className="space-y-4">
+    <div>
+      <Label>Product</Label>
+      <Select value={formData.product_id} onValueChange={(v) => setFormData({ ...formData, product_id: v })}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select product" />
+        </SelectTrigger>
+        <SelectContent>
+          {products.map((p) => (
+            <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+
+    <div>
+      <Label>Quantity</Label>
+      <Input
+        type="number"
+        value={formData.quantity}
+        onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+      />
+    </div>
+
+    <div>
+      <Label>Notes</Label>
+      <Textarea
+        value={formData.notes}
+        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+      />
+    </div>
+
+    <Button onClick={handleCreateRequest} className="w-full">
+      Create Request
+    </Button>
+  </div>
+</DialogContent>
+
           </Dialog>
         </div>
 
         <div className="grid gap-4">
           {requests.map((req) => (
-            <Card key={req.id}>
+            <Card key={req._id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">
@@ -216,18 +233,39 @@ const Requests = () => {
                   <p className="text-sm"><span className="font-medium">Quantity:</span> {req.quantity}</p>
                   <p className="text-sm"><span className="font-medium">Level:</span> {req.request_level}</p>
                   {req.notes && <p className="text-sm text-muted-foreground">{req.notes}</p>}
-                  {req.status === "pending" && (userRole === "hod" || userRole === "sister_incharge" || userRole === "inventory_staff") && (
-                    <div className="flex gap-2 mt-4">
-                      <Button size="sm" onClick={() => handleApprove(req.id)}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Approve
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleReject(req.id)}>
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
+                  {/* Sister-In-Charge Approves Nurse Requests */}
+{userRole === "sister_incharge" && req.status === "pending_sister_incharge" && (
+  <div className="flex gap-2 mt-4">
+    <Button size="sm" onClick={() => handleApprove(req._id)}>
+      <CheckCircle className="mr-2 h-4 w-4" />
+      Approve
+    </Button>
+    <Button size="sm" variant="destructive" onClick={() => handleReject(req._id)}>
+      <XCircle className="mr-2 h-4 w-4" />
+      Reject
+    </Button>
+  </div>
+)}
+
+{userRole === "inventory_staff" && req.status === "pending_inventory_approval" && (
+  <button onClick={() => handleApproveInventory(req._id)}>Approve & Send</button>
+)}
+
+
+{/* HOD Approves Sister-In-Charge Requests */}
+{userRole === "hod" && req.status === "pending_hod" && (
+  <div className="flex gap-2 mt-4">
+    <Button size="sm" onClick={() => handleApprove(req._id)}>
+      <CheckCircle className="mr-2 h-4 w-4" />
+      Approve
+    </Button>
+    <Button size="sm" variant="destructive" onClick={() => handleReject(req._id)}>
+      <XCircle className="mr-2 h-4 w-4" />
+      Reject
+    </Button>
+  </div>
+)}
+
                 </div>
               </CardContent>
             </Card>

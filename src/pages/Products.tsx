@@ -13,14 +13,17 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 interface Product {
-  id: string;
+  _id: string; // ✅ fix: use backend’s _id field
   name: string;
-  category: string | null;
-  batch_no: string | null;
-  expiry_date: string | null;
-  vendor: string | null;
-  description: string | null;
+  category?: string;
+  batchNo?: string;
+  expiryDate?: string;
+  vendor?: string;
+  description?: string;
+  pricePerUnit?: number;
+  totalQuantity?: number;
 }
+
 
 const Products = () => {
   const navigate = useNavigate();
@@ -109,14 +112,26 @@ const Products = () => {
 };
 const handleRequestProduct = async (productId: string) => {
   try {
-    const quantity = prompt("Enter quantity to request:");
-    if (!quantity) return;
-    await apiClient.createRequest("defaultDept", { productId, quantity: parseInt(quantity) });
+    const qty = prompt("Enter quantity to request:");
+    if (!qty) return;
+
+    const payload = {
+      product: productId,  // ✅ include product id here
+      quantity: parseInt(qty),
+      reason: "Requested from product list",
+      requestType: "department"
+    };
+
+    console.log("🚀 Sending request payload:", payload);
+
+    await apiClient.createRequest(payload);
+
     toast({
-      title: "Request Sent",
+      title: "✅ Request Sent",
       description: "Your product request has been submitted for approval.",
     });
-} catch (error: any) {
+  } catch (error: any) {
+    console.error("❌ Request Product error:", error);
     toast({
       title: "Error",
       description: "Could not send request.",
@@ -191,7 +206,7 @@ const handleRequestProduct = async (productId: string) => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => (
-              <Card key={product.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Card key={product._id} className="hover:shadow-lg transition-shadow cursor-pointer">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -206,10 +221,10 @@ const handleRequestProduct = async (productId: string) => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {product.batch_no && (
+                  {product.batchNo && (
                     <div className="text-sm">
                       <span className="text-muted-foreground">Batch: </span>
-                      <span className="font-medium">{product.batch_no}</span>
+                      <span className="font-medium">{product.batchNo}</span>
                     </div>
                   )}
                   {product.vendor && (
@@ -218,11 +233,11 @@ const handleRequestProduct = async (productId: string) => {
                       <span className="font-medium">{product.vendor}</span>
                     </div>
                   )}
-                  {product.expiry_date && (
+                  {product.expiryDate && (
                     <div className="text-sm">
                       <span className="text-muted-foreground">Expires: </span>
                       <span className="font-medium">
-                        {new Date(product.expiry_date).toLocaleDateString()}
+                        {new Date(product.expiryDate).toLocaleDateString()}
                       </span>
                     </div>
                   )}
@@ -233,7 +248,7 @@ const handleRequestProduct = async (productId: string) => {
                   )}
                   {(userRole === "nurse" || userRole === "sister_incharge") && (
   <Button
-    onClick={() => handleRequestProduct(product.id)}
+    onClick={() => handleRequestProduct(product._id)}
     className="w-full mt-2"
   >
     Request Product

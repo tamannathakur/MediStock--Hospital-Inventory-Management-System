@@ -12,6 +12,8 @@ import CentralStock from "./pages/CentralStock";
 import Autoclaves from "./pages/Autoclaves";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
+import MyAlmirah from "./pages/MyAlmirah";
+import DepartmentStock from "./pages/DepartmentStock";
 import ProtectedRoute from "./pages/ProtectedRoute";
 const queryClient = new QueryClient();
 
@@ -38,6 +40,8 @@ const App = () => (
           <Route path="/central-stock" element={<CentralStock />} />
           <Route path="/autoclaves" element={<Autoclaves />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/almirah" element={<MyAlmirah />} />
+          <Route path="/department-stock" element={<DepartmentStock />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

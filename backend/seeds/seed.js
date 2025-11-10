@@ -19,7 +19,7 @@ const bcrypt = require('bcryptjs');
 
   await User.create({ name: 'HOD One', email: 'hod@example.com', password: pwd, role: 'hod', departmentId: dep1._id });
   await User.create({ name: 'Inventory Staff', email: 'inventory@example.com', password: pwd, role: 'inventory_staff' });
-  await User.create({ name: 'Sister InCharge', email: 'sister@example.com', password: pwd, role: 'sister_incharge', departmentId: dep1._id });
+  await User.create({ name: 'Sister InCharge', email: 'sister@example.com', password: pwd, role: 'sister_incharge', departmentId: dep1._id });a
   await User.create({ name: 'Nurse A', email: 'nurse@example.com', password: pwd, role: 'nurse', departmentId: dep1._id });
 
   console.log('Seed finished');

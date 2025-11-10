@@ -10,6 +10,7 @@ function setToken(token: string | null) {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+
 function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -53,6 +54,23 @@ export async function register(payload: { name: string; email: string; password:
   if (resp?.token) setToken(resp.token);
   return resp;
 }
+
+export async function listAlmirah(): Promise<any[]> {
+  return request('/almirah');
+}
+
+// ✅ Corrected function
+export async function useAlmirahItem(productId: string, quantity: number) {
+  return request(`/almirah/use/${productId}`, {
+    method: "PUT",
+    body: JSON.stringify({ quantity }), // clear, consistent naming
+  });
+}
+
+export async function listDepartmentStock(): Promise<any[]> {
+  return request("/department-stock"); // GET /api/department-stock
+}
+
 
 
 // decode JWT payload (no verification) to get id/role
@@ -127,13 +145,39 @@ export async function listRequests(): Promise<any[]> {
   return request('/requests'); // GET /api/requests - backend route may need to be added
 }
 
-export async function createRequest(departmentId: string, payload: { productId: string; quantity: number; reason?: string }) {
-  return request(`/departments/${departmentId}/request`, { method: 'POST', body: JSON.stringify(payload) });
+// ✅ Updated: No departmentId needed, matches new backend route (/api/requests)
+export async function createRequest(payload: {
+  product: string;
+  quantity: number;
+  reason?: string;
+  requestType?: string;
+}) {
+  return request("/requests", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
-export async function updateRequestStatus(id: string, payload: { status: string; approved_by?: string }) {
-  return request(`/requests/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export async function updateRequestStatus(id: string, role: string) {
+  let endpoint = `/requests/${id}`;
+
+  if (role === "sister_incharge") endpoint += "/approve-sister";
+  else if (role === "hod") endpoint += "/approve-hod";
+  else if (role === "inventory_staff") endpoint += "/fulfill";
+  else throw new Error("Unauthorized role for approval");
+
+  return request(endpoint, { method: "PUT" });
 }
+
+export async function rejectRequest(id: string, role: string) {
+  return request(`/requests/${id}/reject`, { method: "PUT" });
+}
+
+export async function approveInventoryRequest(id) {
+  return request(`/requests/${id}/approve-inventory`, { method: "PUT" });
+}
+
+
 export default {
   login,
   register,
@@ -151,6 +195,11 @@ export default {
   listRequests,
   createRequest,
   updateRequestStatus,
+  useAlmirahItem,
+  listAlmirah,
   logout,
-  addProduct
+  rejectRequest,
+  addProduct,
+  approveInventoryRequest,
+  listDepartmentStock
 };
