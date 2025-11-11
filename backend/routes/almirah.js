@@ -3,29 +3,31 @@ const router = express.Router();
 const { auth, authorize } = require("../middleware/auth"); // ✅ fixed import
 const AlmirahInventory = require("../models/AlmirahInventory");
 
-// 🧺 Get Almirah inventory (simplified schema, no nurse)
 router.get("/", auth, async (req, res) => {
-
   try {
-    const almirah = await AlmirahInventory.findOne().populate("items.product");
+    const almirahs = await AlmirahInventory.find()
+      .populate("items.product");
 
-    if (!almirah) {
+    // ✅ Filter out empty/malformed almirahs
+    const validAlmirahs = almirahs.filter(a => Array.isArray(a.items) && a.items.length > 0);
+
+    if (validAlmirahs.length === 0) {
       return res.status(200).json({ msg: "No items found in almirah", items: [] });
     }
 
-    if (!almirah.items || almirah.items.length === 0) {
-      return res.status(200).json({ msg: "No items found in almirah", items: [] });
-    }
+    const formattedItems = validAlmirahs.flatMap((almirah) =>
+      almirah.items.map((item) => ({
+        productId: item.product?._id,
+        name: item.product?.name || "Unknown Product",
+        category: almirah.category,
+        quantity: item.quantity,
+        expiry: item.expiry || null,
+        nurse: almirah.nurse || null,
+      }))
+    );
 
-    const formattedItems = almirah.items.map((item) => ({
-      productId: item.product?._id,
-      name: item.product?.name || "Unknown Product",
-      category: almirah.category,
-      quantity: item.quantity,
-      expiry: item.expiry || null,
-    }));
     res.json({
-      category: almirah.category,
+      totalAlmirahs: validAlmirahs.length,
       items: formattedItems,
     });
   } catch (err) {
@@ -33,6 +35,7 @@ router.get("/", auth, async (req, res) => {
     res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
+
 
 // 🧺 Use a product from nurse’s almirah (reduce quantity)
 router.put("/use/:productId", auth, authorize(["nurse"]), async (req, res) => {

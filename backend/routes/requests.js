@@ -373,7 +373,7 @@ router.put("/:id/approve-inventory", auth, authorize(["inventory_staff"]), async
 }
 
     // ✅ Deduct quantity
-    product.quantity -= request.quantity;
+    product.totalQuantity -= request.quantity;
     await product.save();
 
     // ✅ Update request status
