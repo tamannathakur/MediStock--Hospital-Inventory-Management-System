@@ -81,7 +81,6 @@ const Layout = ({ children, userRole }: LayoutProps) => {
         return [
           ...commonNav,
           { icon: Building2, label: "Store", path: "/stores" },
-          { icon: Users, label: "Departments", path: "/departments" },
           { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
       case "sister_incharge":
@@ -95,8 +94,6 @@ const Layout = ({ children, userRole }: LayoutProps) => {
       case "hod":
         return [
           ...commonNav,
-          { icon: Users, label: "Departments", path: "/departments" },
-          { icon: Activity, label: "Analytics", path: "/analytics" },
           { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
       case "nurse":

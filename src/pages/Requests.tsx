@@ -224,7 +224,7 @@ const handleApproveInventory = async (id: string) => {
           </Dialog>
         </div>
 
-        <div className="grid gap-4">
+        {/* <div className="grid gap-4">
           {requests.map((req) => (
             
             <Card key={req._id}>
@@ -236,19 +236,19 @@ const handleApproveInventory = async (id: string) => {
                   </CardTitle>
                   <Badge variant={getStatusColor(req.status)}>{req.status}</Badge>
                 </div>
-              </CardHeader>
+              </CardHeader> */}
               
-              <CardContent>
+              {/* <CardContent>
                 <div className="space-y-2">
                   <p className="text-sm"><span className="font-medium">Quantity:</span> {req.quantity}</p>
                   <p className="text-sm"><span className="font-medium">Level:</span> {req.request_level}</p>
-                  {req.notes && <p className="text-sm text-muted-foreground">{req.notes}</p>}
+                  {req.notes && <p className="text-sm text-muted-foreground">{req.notes}</p>} */}
                   {/* Sister-In-Charge Approves Nurse Requests */}
 {/* 🩺 Sister-In-Charge Actions */}
-{userRole?.toLowerCase() === "sister_incharge" && (
-  <>
+{/* {userRole?.toLowerCase() === "sister_incharge" && (
+  <> */}
     {/* 🔹 Approve/Reject Nurse Requests */}
-    {req.status?.toLowerCase().trim() === "pending_sister_incharge" && (
+    {/* {req.status?.toLowerCase().trim() === "pending_sister_incharge" && (
       <div className="flex gap-2 mt-4">
         <Button size="sm" onClick={() => handleApprove(req._id)}>
           <CheckCircle className="mr-2 h-4 w-4" /> Approve
@@ -257,10 +257,10 @@ const handleApproveInventory = async (id: string) => {
           <XCircle className="mr-2 h-4 w-4" /> Reject
         </Button>
       </div>
-    )}
+    )} */}
 
     {/* 🔹 Mark as Received (after Inventory sends it) */}
-    {req.status?.toLowerCase().trim() === "approved_and_sent" && (
+    {/* {req.status?.toLowerCase().trim() === "approved_and_sent" && (
       <div className="mt-4">
         <Button
           size="sm"
@@ -273,16 +273,16 @@ const handleApproveInventory = async (id: string) => {
       </div>
     )}
   </>
-)}
-
+)} */}
+{/* 
 
 {userRole === "inventory_staff" && req.status === "pending_inventory_approval" && (
   <button onClick={() => handleApproveInventory(req._id)}>Approve & Send</button>
-)}
+)} */}
 
 
 {/* HOD Approves Sister-In-Charge Requests */}
-{userRole === "hod" && req.status === "pending_hod" && (
+{/* {userRole === "hod" && req.status === "pending_hod" && (
   <div className="flex gap-2 mt-4">
     <Button size="sm" onClick={() => handleApprove(req._id)}>
       <CheckCircle className="mr-2 h-4 w-4" />
@@ -293,13 +293,149 @@ const handleApproveInventory = async (id: string) => {
       Reject
     </Button>
   </div>
-)}
-
+)} */}
+{/* 
                 </div>
               </CardContent>
             </Card>
           ))}
-        </div>
+       </div> */}
+       <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+  {requests.map((req) => {
+    const productName =
+      products.find((p) => p._id === req.product_id)?.name ||
+      req.product?.name ||
+      "Unknown Product";
+
+    const status = req.status?.toLowerCase().trim();
+
+    const statusStyles: Record<string, string> = {
+      pending_sister_incharge: "bg-yellow-50 text-yellow-800 border border-yellow-300",
+      pending_hod: "bg-blue-50 text-blue-800 border border-blue-300",
+      approved_and_sent: "bg-green-50 text-green-800 border border-green-300",
+      fulfilled: "bg-emerald-50 text-emerald-800 border border-emerald-300",
+      rejected: "bg-red-50 text-red-800 border border-red-300",
+    };
+
+    return (
+      <Card
+        key={req._id}
+        className="shadow-md hover:shadow-xl transition-all duration-300 rounded-xl border border-gray-200 hover:border-gray-300"
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold text-gray-900 tracking-wide">
+              {productName}
+            </CardTitle>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
+                statusStyles[status] || "bg-gray-100 text-gray-800 border border-gray-300"
+              }`}
+            >
+              {req.status.replace(/_/g, " ")}
+            </span>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-3 text-gray-700">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <p>
+              <span className="font-medium text-gray-900">Quantity: </span>
+              {req.quantity}
+            </p>
+            <p className="col-span-2">
+              <span className="font-medium text-gray-900">Created: </span>
+              {new Date(req.createdAt).toLocaleString()}
+            </p>
+          </div>
+
+          {req.notes && (
+            <div className="border-l-4 border-gray-300 pl-3 mt-2">
+              <p className="text-sm italic text-gray-600">“{req.notes}”</p>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            {/* 👩‍⚕️ Sister-In-Charge Actions */}
+            {userRole?.toLowerCase() === "sister_incharge" && (
+              <>
+                {status === "pending_sister_incharge" && (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(req._id)}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleReject(req._id)}
+                      className="px-4"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Reject
+                    </Button>
+                  </>
+                )}
+
+                {status === "approved_and_sent" && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleMarkReceived(req._id)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Mark as Received
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* 🧰 Inventory Staff Actions */}
+            {userRole === "inventory_staff" &&
+              status === "pending_inventory_approval" && (
+                <Button
+                  size="sm"
+                  onClick={() => handleApproveInventory(req._id)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve & Send
+                </Button>
+              )}
+
+            {/* 🏢 HOD Actions */}
+            {userRole === "hod" && status === "pending_hod" && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => handleApprove(req._id)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleReject(req._id)}
+                  className="px-4"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  })}
+</div>
+
       </div>
     </Layout>
   );

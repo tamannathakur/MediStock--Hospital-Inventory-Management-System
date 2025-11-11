@@ -227,6 +227,12 @@ const handleRequestProduct = async (productId: string) => {
                       <span className="font-medium">{product.vendor}</span>
                     </div>
                   )}
+                  {product.totalQuantity && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Total Quantity: </span>
+                      <span className="font-medium">{product.totalQuantity}</span>
+                    </div>
+                  )}
                   {product.expiryDate && (
                     <div className="text-sm">
                       <span className="text-muted-foreground">Expires: </span>
