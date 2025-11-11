@@ -24,6 +24,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/almirah', require('./routes/almirah'));
 app.use(require('./middleware/errorHandler'));
 app.use("/api/autoclave", require("./routes/autoclave"));
+app.use("/api/stores", require("./routes/stores"));
 app.use("/api/department-stock", require("./routes/departmentInventory"));
 app.use("/api/requests", requestRoutes);
 app.use("/api/autoclave", require("./routes/autoclave"));

@@ -1,19 +1,55 @@
 const mongoose = require("mongoose");
 
 const vendorOrderSchema = new mongoose.Schema({
-  productName: String,
-  quantity: Number,
-  unitPrice: Number,
-  vendorName: String,
-  orderedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  status: { 
-    type: String, 
-    enum: ["requested", "ordered", "received"], 
-    default: "requested" 
+  productName: {
+    type: String,
+    required: true,
   },
-  billFile: String, // uploaded PDF/image file of bill
-  orderedAt: { type: Date, default: Date.now },
-  receivedAt: { type: Date },
+  quantity: {
+    type: Number,
+    required: true,
+  },
+  vendorName: {
+    type: String,
+    required: true,
+  },
+  unitPrice: {
+    type: Number,
+    required: true,
+  },
+  totalCost: {
+    type: Number,
+  },
+  status: {
+    type: String,
+    enum: ["requested", "ordered", "received"],
+    default: "requested",
+  },
+  billFile: {
+    type: String, // Firebase or local file URL
+  },
+  orderedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  receivedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  orderedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  receivedAt: {
+    type: Date,
+  },
+},{timestamps: true });
+
+vendorOrderSchema.pre("save", function (next) {
+  if (this.quantity && this.unitPrice) {
+    this.totalCost = this.quantity * this.unitPrice;
+  }
+  next();
 });
 
 module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
