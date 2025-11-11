@@ -80,7 +80,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
       case "inventory_staff":
         return [
           ...commonNav,
-          { icon: Building2, label: "Central Stock", path: "/central-stock" },
+          { icon: Building2, label: "Store", path: "/stores" },
           { icon: Users, label: "Departments", path: "/departments" },
           { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
