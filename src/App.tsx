@@ -16,6 +16,8 @@ import MyAlmirah from "./pages/MyAlmirah";
 import DepartmentStock from "./pages/DepartmentStock";
 import Transactions from "./pages/Transactions";
 import ProtectedRoute from "./pages/ProtectedRoute";
+import StorePage from "./pages/StorePage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -44,6 +46,7 @@ const App = () => (
           <Route path="/almirah" element={<MyAlmirah />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/department-stock" element={<DepartmentStock />} />
+          <Route path="/stores" element={<StorePage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

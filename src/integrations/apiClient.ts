@@ -163,6 +163,32 @@ export async function resolveComplaint(id: string, payload: { resolved_by: strin
   return request(`/complaints/${id}/resolve`, { method: 'PUT', body: JSON.stringify(payload) });
 }
 
+// 🏬 Store APIs
+export async function listStoreOrders() {
+  return request("/stores"); // GET /api/stores
+}
+
+export async function createStoreOrder(payload) {
+  return request("/stores", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function markStoreOrderReceived(id, billFile) {
+  return request(`/stores/${id}/mark-received`, {
+    method: "PUT",
+    body: JSON.stringify({ billFile }),
+  });
+}
+
+export async function createStoreOrderBatch(items: any[]) {
+  return request("/stores/batch", {
+    method: "POST",
+    body: JSON.stringify(items),
+  });
+}
+
 export async function listRequests(): Promise<any[]> {
   return request('/requests'); // GET /api/requests - backend route may need to be added
 }
@@ -260,6 +286,7 @@ export default {
   createRequest,
   updateRequestStatus,
   useAlmirahItem,
+  createStoreOrderBatch,
   listAlmirah,
   logout,
   rejectRequest,
@@ -268,5 +295,8 @@ export default {
   listDepartmentStock,
   updateAutoclaveItem,
   addAutoclaveItem,
-  markRequestReceived
+  markRequestReceived,
+  listStoreOrders,
+  createStoreOrder,
+  markStoreOrderReceived,
 };
