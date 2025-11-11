@@ -6,8 +6,6 @@ const DepartmentInventory = require("../models/DepartmentInventory");
 // 📦 GET all Department Inventory items
 router.get("/", auth, authorize(["sister_incharge", "hod"]), async (req, res) => {
   try {
-    console.log("📦 [DEPARTMENT-STOCK] Fetching department inventory...");
-
     const inventory = await DepartmentInventory.find().populate("product");
 
     if (!inventory || inventory.length === 0) {
@@ -26,7 +24,6 @@ router.get("/", auth, authorize(["sister_incharge", "hod"]), async (req, res) =>
       updatedAt: item.updatedAt,
     }));
 
-    console.log(`✅ [DEPARTMENT-STOCK] Found ${formatted.length} items`);
     res.json({ items: formatted });
   } catch (err) {
     console.error("❌ [DEPARTMENT-STOCK] Error fetching inventory:", err);

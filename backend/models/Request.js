@@ -8,6 +8,12 @@ const RequestSchema = new mongoose.Schema({
   requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   fulfilledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  vendorETA: { type: String }, // e.g., "24 hours", "48 hours"
+vendorStatus: { 
+  type: String, 
+  enum: ["awaiting_vendor", "ordered", "received", "stored"], 
+  default: null 
+},
   status: {
   type: String,
   enum: [

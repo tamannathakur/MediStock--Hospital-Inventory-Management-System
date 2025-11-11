@@ -32,7 +32,6 @@ const Auth = () => {
 
   //   try {
   //     const profile = await apiClient.getProfile();
-  //     console.log("Backend /auth/me response:", profile);
   //     // only navigate if not already on dashboard
   //     if (window.location.pathname !== "/dashboard") {
   //       navigate("/dashboard");
@@ -55,19 +54,13 @@ const Auth = () => {
 
   try {
     const resp = await apiClient.login(loginEmail, loginPassword);
-    console.log("Login response:", resp);
 
     if (resp?.token) {
       localStorage.setItem("token", resp.token);
-      console.log("✅ Token saved:", localStorage.getItem("token"));
-
-
       toast({ title: "Success", description: "Logged in successfully!" });
 
-      console.log("Navigating to dashboard...");
       navigate("/dashboard");
     } else {
-      console.log("❌ No token in response!");
       toast({ title: "Error", description: "Login failed.", variant: "destructive" });
     }
   } catch (error: any) {

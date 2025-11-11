@@ -45,13 +45,10 @@ const DepartmentStock = () => {
 
   const fetchDepartmentStock = async () => {
     try {
-      console.log("📦 [DepartmentStock] Fetching department inventory...");
       const data = await apiClient.listDepartmentStock();
-      console.log("📥 [DepartmentStock] API Response:", data);
 
       if (data && Array.isArray(data.items)) {
         setDepartmentItems(data.items);
-        console.log(`✅ Loaded ${data.items.length} department items`);
       } else {
         console.warn("⚠️ Unexpected response format:", data);
       }

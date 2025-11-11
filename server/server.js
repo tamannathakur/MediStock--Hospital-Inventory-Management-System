@@ -16,7 +16,7 @@ app.use(express.json({ extended: false }));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/stock', require('./routes/stock'));
-app.use('/api/autoclaves', require('./routes/autoclaves'));
+app.use('/api/autoclaves', require('./routes/autoclave'));
 app.use('/api/departments', require('./routes/departmentroutes'));
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/analytics', require('./routes/analytics'));

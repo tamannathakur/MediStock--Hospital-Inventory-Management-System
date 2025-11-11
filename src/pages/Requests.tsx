@@ -44,12 +44,9 @@ const Requests = () => {
   });
 
   useEffect(() => {
-    console.log("🟡 [Requests] useEffect triggered — checking authentication...");
     const checkAuth = async () => {
       try {
-        console.log("🔵 [Requests] Calling apiClient.getProfile()...");
         const profile = await apiClient.getProfile?.();
-        console.log("🟢 [Requests] /auth/me response:", profile);
         if (!profile?._id) {
            console.warn("⚠️ [Requests] Profile is null → redirecting to /auth");
           navigate('/auth');
@@ -58,7 +55,6 @@ const Requests = () => {
         setUserId(profile._id);
         setUserRole(profile.role || '');
         setFormData(prev => ({ ...prev, department_id: profile.department_id || '' }));
-        console.log("✅ [Requests] Authenticated as:", profile.role);
         await Promise.all([fetchRequests(), fetchProducts(), fetchDepartments()]);
       } catch (err) {
         navigate('/auth');
@@ -89,6 +85,17 @@ const Requests = () => {
     }
   };
 
+  const handleMarkReceived = async (id) => {
+  try {
+    await apiClient.markRequestReceived(id);
+    toast({ title: "✅ Items received successfully" });
+    fetchRequests();
+  } catch (err) {
+    console.error("❌ Error receiving items:", err);
+    toast({ title: "Error receiving items", variant: "destructive" });
+  }
+};
+
   const fetchDepartments = async () => {
     try {
       const data = await apiClient.listDepartments();
@@ -108,7 +115,7 @@ const Requests = () => {
       fetchRequests();
       setFormData({ product_id: '', quantity: '', notes: '', request_level: 'department', department_id: '' });
     } catch (err) {
-      toast({ title: 'Error creating request', description: (err as Error).message || 'Failed', variant: 'destructive' });
+      toast({ title: 'Error creating request', reason: (err as Error).message || 'Failed', variant: 'destructive' });
     }
   };
 
@@ -219,33 +226,55 @@ const handleApproveInventory = async (id: string) => {
 
         <div className="grid gap-4">
           {requests.map((req) => (
+            
             <Card key={req._id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">
-                    {products.find(p => p.id === req.product_id)?.name || "Unknown Product"}
+{products.find(p => p._id === req.product_id)?.name || req.product?.name || "Unknown Product"}
+
                   </CardTitle>
                   <Badge variant={getStatusColor(req.status)}>{req.status}</Badge>
                 </div>
               </CardHeader>
+              
               <CardContent>
                 <div className="space-y-2">
                   <p className="text-sm"><span className="font-medium">Quantity:</span> {req.quantity}</p>
                   <p className="text-sm"><span className="font-medium">Level:</span> {req.request_level}</p>
                   {req.notes && <p className="text-sm text-muted-foreground">{req.notes}</p>}
                   {/* Sister-In-Charge Approves Nurse Requests */}
-{userRole === "sister_incharge" && req.status === "pending_sister_incharge" && (
-  <div className="flex gap-2 mt-4">
-    <Button size="sm" onClick={() => handleApprove(req._id)}>
-      <CheckCircle className="mr-2 h-4 w-4" />
-      Approve
-    </Button>
-    <Button size="sm" variant="destructive" onClick={() => handleReject(req._id)}>
-      <XCircle className="mr-2 h-4 w-4" />
-      Reject
-    </Button>
-  </div>
+{/* 🩺 Sister-In-Charge Actions */}
+{userRole?.toLowerCase() === "sister_incharge" && (
+  <>
+    {/* 🔹 Approve/Reject Nurse Requests */}
+    {req.status?.toLowerCase().trim() === "pending_sister_incharge" && (
+      <div className="flex gap-2 mt-4">
+        <Button size="sm" onClick={() => handleApprove(req._id)}>
+          <CheckCircle className="mr-2 h-4 w-4" /> Approve
+        </Button>
+        <Button size="sm" variant="destructive" onClick={() => handleReject(req._id)}>
+          <XCircle className="mr-2 h-4 w-4" /> Reject
+        </Button>
+      </div>
+    )}
+
+    {/* 🔹 Mark as Received (after Inventory sends it) */}
+    {req.status?.toLowerCase().trim() === "approved_and_sent" && (
+      <div className="mt-4">
+        <Button
+          size="sm"
+          onClick={() => {
+            handleMarkReceived(req._id);
+          }}
+        >
+          <CheckCircle className="mr-2 h-4 w-4" /> Mark as Received
+        </Button>
+      </div>
+    )}
+  </>
 )}
+
 
 {userRole === "inventory_staff" && req.status === "pending_inventory_approval" && (
   <button onClick={() => handleApproveInventory(req._id)}>Approve & Send</button>

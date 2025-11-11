@@ -45,13 +45,10 @@ const MyAlmirah = () => {
 
   const fetchAlmirahItems = async () => {
     try {
-      console.log("📦 [MyAlmirah] Fetching almirah items...");
       const data = await apiClient.listAlmirah();
-      console.log("📥 [MyAlmirah] API Response:", data);
 
       if (data && Array.isArray(data.items)) {
         setAlmirahItems(data.items);
-        console.log(`✅ [MyAlmirah] Loaded ${data.items.length} items`);
       } else {
         console.warn("⚠️ [MyAlmirah] Unexpected response format:", data);
       }

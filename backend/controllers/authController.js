@@ -18,7 +18,6 @@ exports.register = async (req, res) => {
             role,
             department
         });
-        console.log("🧾 Authenticated user from token:", req.user);
 
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);

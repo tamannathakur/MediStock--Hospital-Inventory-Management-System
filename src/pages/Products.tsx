@@ -28,7 +28,6 @@ interface Product {
 const Products = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  console.log("🧭 Products page rendered! Path:", window.location.pathname);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("");
@@ -45,17 +44,14 @@ const Products = () => {
   totalQuantity: "",
 });
   useEffect(() => {
-    console.log("🚀 useEffect triggered for Products");
     const checkAuth = async () => {
       try {
         const profile = await apiClient.getProfile?.();
-        console.log("👤 /auth/me profile:", profile);
         if (!profile || !profile._id) {
           navigate('/auth');
           return;
         }
         setUserRole(profile.role || '');
-        console.log("✅ User role set to:", profile.role);
         await fetchProducts();
       } catch (err) {
         navigate('/auth');
@@ -80,7 +76,6 @@ const Products = () => {
   const handleAddProduct = async (e: React.FormEvent) => {
   e.preventDefault();
   try {
-    console.log("🆕 Adding product:", newProduct);
     await apiClient.addProduct(newProduct);
     toast({
       title: "✅ Product Added",
@@ -118,11 +113,10 @@ const handleRequestProduct = async (productId: string) => {
     const payload = {
       product: productId,  // ✅ include product id here
       quantity: parseInt(qty),
-      reason: "Requested from product list",
+      description: "Requested from product list",
       requestType: "department"
     };
 
-    console.log("🚀 Sending request payload:", payload);
 
     await apiClient.createRequest(payload);
 

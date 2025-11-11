@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const almirahInventorySchema = new mongoose.Schema({
+  nurse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
   category: {
     type: String,
     enum: ["Consumables", "Equipment", "PPE", "Medicines", "Others"],
@@ -14,7 +19,7 @@ const almirahInventorySchema = new mongoose.Schema({
         required: true,
       },
       quantity: { type: Number, required: true, default: 0 },
-      expiry: { type: Date }, // ✅ optional expiry date
+      expiry: { type: Date },
     },
   ],
 }, { timestamps: true });

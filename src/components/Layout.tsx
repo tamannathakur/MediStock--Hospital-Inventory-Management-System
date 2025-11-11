@@ -35,7 +35,6 @@ const Layout = ({ children, userRole }: LayoutProps) => {
   const { toast } = useToast();
   const [userName, setUserName] = useState<string>("");
   const [localRole, setLocalRole] = useState<string | undefined>(userRole);
-  console.log("📦 Layout rendered, current path:", window.location.pathname);
   // derive nav items from the locally-known role (prop can seed it)
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -91,6 +90,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
           { icon: Building2, label: "Department Stock", path: "/department-stock" },
           { icon: Package, label: "Almirah", path: "/almirah" },
           { icon: Activity, label: "Autoclaves", path: "/autoclaves" },
+          { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
       case "hod":
         return [
@@ -107,6 +107,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
           { icon: Activity, label: "Autoclaves", path: "/autoclaves" },
           { icon: FileText, label: "Requests", path: "/requests" },
           { icon: AlertCircle, label: "Complaints", path: "/complaints" },
+          { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
       default:
         return commonNav;

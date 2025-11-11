@@ -5,19 +5,15 @@ const AlmirahInventory = require("../models/AlmirahInventory");
 
 // 🧺 Get Almirah inventory (simplified schema, no nurse)
 router.get("/", auth, async (req, res) => {
-  console.log("🧭 [ALMIRAH] GET /api/almirah called");
 
   try {
     const almirah = await AlmirahInventory.findOne().populate("items.product");
-    console.log("🧱 [ALMIRAH] Query result:", almirah);
 
     if (!almirah) {
-      console.log("⚠️ [ALMIRAH] No almirah found in DB");
       return res.status(200).json({ msg: "No items found in almirah", items: [] });
     }
 
     if (!almirah.items || almirah.items.length === 0) {
-      console.log("⚠️ [ALMIRAH] Almirah found but no items inside");
       return res.status(200).json({ msg: "No items found in almirah", items: [] });
     }
 
@@ -28,9 +24,6 @@ router.get("/", auth, async (req, res) => {
       quantity: item.quantity,
       expiry: item.expiry || null,
     }));
-
-    console.log("✅ [ALMIRAH] Sending formatted response:", formattedItems.length, "items");
-
     res.json({
       category: almirah.category,
       items: formattedItems,

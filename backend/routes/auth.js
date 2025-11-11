@@ -9,17 +9,12 @@ const {auth} = require('../middleware/auth');
 // in routes: backend/routes/authRoutes.js
 router.get('/me', auth, async (req, res) => {
    try {
-    console.log("🧍 [AUTH /me] Auth middleware passed. req.user =", req.user);
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
       console.warn("⚠️ [AUTH /me] User not found in DB for id:", req.user.id);
       return res.status(404).json({ msg: "User not found" });
     }
-    console.log("✅ [AUTH /me] Returning user:", {
-      id: user._id,
-      role: user.role,
-      email: user.email,
-    });
+    
     res.json(user);
   } catch (err) {
     console.error("❌ [AUTH /me] Error:", err);

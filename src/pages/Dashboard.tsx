@@ -17,7 +17,6 @@ interface DashboardStats {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  console.log("✅ Dashboard rendered!");
   const [userRole, setUserRole] = useState<string>("");
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
@@ -26,27 +25,22 @@ const Dashboard = () => {
     recentActivity: 0,
   });
   useEffect(() => {
-  console.log("🧭 Dashboard useEffect auth check running");
 }, []);
 
   useEffect(() => {
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
-    console.log("🧩 Token in Dashboard:", token);
 
     // If no token, send to auth immediately
     if (!token) {
-      console.log("🚫 No token found — redirecting to /auth");
       navigate('/auth');
       return;
     }
 
     try {
       const profile = await apiClient.getProfile();
-      console.log("✅ Profile fetched:", profile);
 
       if (!profile?._id && !profile?.id) {
-        console.log("🚫 Invalid profile response — redirecting to /auth");
         navigate('/auth');
         return;
       }

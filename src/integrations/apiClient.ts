@@ -48,6 +48,13 @@ export async function login(email: string, password: string) {
   return resp;
 }
 
+// ✅ Mark request as received by Sister-In-Charge
+export async function markRequestReceived(id) {
+  return request(`/requests/${id}/mark-received`, {
+    method: 'PUT',
+  });
+}
+
 export async function register(payload: { name: string; email: string; password: string; role: string; department?: string }) {
   const data = await request('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
   const resp = data as LoginResp;
@@ -69,6 +76,21 @@ export async function useAlmirahItem(productId: string, quantity: number) {
 
 export async function listDepartmentStock(): Promise<any[]> {
   return request("/department-stock"); // GET /api/department-stock
+}
+
+
+export async function addAutoclaveItem(autoclaveId: string, productId: string) {
+  return request(`/autoclaves/${autoclaveId}/add-item`, {
+    method: "POST",
+    body: JSON.stringify({ productId }),
+  });
+}
+
+export async function updateAutoclaveItem(autoclaveId: string, itemId: string, data: any) {
+  return request(`/autoclaves/${autoclaveId}/item/${itemId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 
 
@@ -149,7 +171,7 @@ export async function listRequests(): Promise<any[]> {
 export async function createRequest(payload: {
   product: string;
   quantity: number;
-  reason?: string;
+  description?: string;
   requestType?: string;
 }) {
   return request("/requests", {
@@ -177,8 +199,50 @@ export async function approveInventoryRequest(id) {
   return request(`/requests/${id}/approve-inventory`, { method: "PUT" });
 }
 
+// 📦 Get all transactions
+export async function getTransactions() {
+  const res = await fetch(`${API_BASE}/transactions`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to fetch transactions: ${errText}`);
+  }
+
+  return await res.json();
+}
+
+// 📤 Export transactions as Excel (returns blob)
+export async function exportTransactions(startDate, endDate) {
+  const res = await fetch(
+    `${API_BASE}/transactions/export?startDate=${startDate}&endDate=${endDate}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to export transactions: ${errText}`);
+  }
+
+  return await res.blob(); // ✅ Return blob directly
+}
+
+
+
 
 export default {
+  getTransactions,
+  exportTransactions,
   login,
   register,
   getCurrentUserFromToken,
@@ -201,5 +265,8 @@ export default {
   rejectRequest,
   addProduct,
   approveInventoryRequest,
-  listDepartmentStock
+  listDepartmentStock,
+  updateAutoclaveItem,
+  addAutoclaveItem,
+  markRequestReceived
 };
