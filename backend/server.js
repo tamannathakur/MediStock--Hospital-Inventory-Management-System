@@ -9,16 +9,17 @@ connectDB();
 console.log("db connected");
 
 // Middleware
-app.use(cors({
-  origin: "http://localhost:8080",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
+app.use(cors()); // Enable CORS for all routes by default
+// app.use(cors({
+//   origin: "http://localhost:8080",
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   credentials: true,
+// }));
 
-// 🔥 Very important: allow OPTIONS for all paths
-//app.options(cors());
-app.disable("etag");
+// // 🔥 Very important: allow OPTIONS for all paths
+// //app.options(cors());
+// app.disable("etag");
 
 app.use(express.json());
 
@@ -38,8 +39,6 @@ app.use('/api/stores', require('./routes/stores'));
 app.use('/api/department-stock', require('./routes/departmentInventory'));
 console.log("⚡ Loading: routes/requests (folder or file?)");
 console.log("Resolved path:", require.resolve("./routes/requests"));
-const requestGetRoutes = require("./routes/requests/request.get.js");
-app.use("/api/requests", requestGetRoutes);
 app.use('/api/requests', require('./routes/requests'));     // <-- NOW LOADED IN PROPER ORDER
 app.use('/api/transactions', require('./routes/transactions'));
 
