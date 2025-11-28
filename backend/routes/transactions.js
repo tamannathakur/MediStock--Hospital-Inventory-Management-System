@@ -6,42 +6,62 @@ const User = require("../models/User");
 const Product = require("../models/Product");
 const ExcelJS = require("exceljs");
 
-// 📄 GET all transactions (role-based filtering)
-router.get("/", auth, async (req, res) => {
+// // 📄 GET all transactions (role-based filtering)
+// router.get("/", auth, async (req, res) => {
+//   try {
+//     const user = req.user;
+//     let filter = {};
+
+//     // 🩺 Sister-In-Charge — sees own department transactions
+//     if (user.role === "sister_incharge") {
+//       filter = {}; 
+//     }
+
+//     // 👩‍⚕️ Nurse — sees only their own requests
+//     else if (user.role === "nurse") {
+//       filter = {
+//         $or: [{ initiatedBy: user._id }, { receivedBy: user._id }],
+//       };
+//     }
+
+//     // 🏢 Inventory Staff — sees central <-> department movements only
+//     else if (user.role === "inventory_staff") {
+//       filter = {
+//         $or: [
+//           { "from.role": "Inventory Staff" },
+//           { "to.role": "Inventory Staff" },
+//           { "to.role": "Central Inventory" },
+//           { "from.role": "Central Inventory" },
+//         ],
+//       };
+//     }
+
+//     // 👨‍⚕️ HOD — sees all transactions
+//     else if (user.role === "hod") {
+//       filter = {}; // no restrictions
+//     }
+
+//     const transactions = await Transaction.find(filter)
+//       .populate("productId", "name category batchNo")
+//       .populate("initiatedBy", "name role email")
+//       .populate("receivedBy", "name role email")
+//       .populate("request", "status quantity")
+//       .sort({ date: -1 });
+
+//     res.json(transactions);
+//   } catch (err) {
+//     console.error("❌ Error fetching transactions:", err);
+//     res.status(500).json({ error: "Server error fetching transactions" });
+//   }
+// });
+
+
+
+ router.get("/", auth, async (req, res) => {
   try {
     const user = req.user;
-    let filter = {};
 
-    // 🩺 Sister-In-Charge — sees own department transactions
-    if (user.role === "sister_incharge") {
-      filter = {}; 
-    }
-
-    // 👩‍⚕️ Nurse — sees only their own requests
-    else if (user.role === "nurse") {
-      filter = {
-        $or: [{ initiatedBy: user._id }, { receivedBy: user._id }],
-      };
-    }
-
-    // 🏢 Inventory Staff — sees central <-> department movements only
-    else if (user.role === "inventory_staff") {
-      filter = {
-        $or: [
-          { "from.role": "Inventory Staff" },
-          { "to.role": "Inventory Staff" },
-          { "to.role": "Central Inventory" },
-          { "from.role": "Central Inventory" },
-        ],
-      };
-    }
-
-    // 👨‍⚕️ HOD — sees all transactions
-    else if (user.role === "hod") {
-      filter = {}; // no restrictions
-    }
-
-    const transactions = await Transaction.find(filter)
+    const transactions = await Transaction.find()
       .populate("productId", "name category batchNo")
       .populate("initiatedBy", "name role email")
       .populate("receivedBy", "name role email")
@@ -54,6 +74,7 @@ router.get("/", auth, async (req, res) => {
     res.status(500).json({ error: "Server error fetching transactions" });
   }
 });
+
 
 // 📄 GET transactions between date range (for Excel download)
 router.get("/export", auth, async (req, res) => {
