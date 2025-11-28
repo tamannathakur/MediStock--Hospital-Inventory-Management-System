@@ -18,13 +18,13 @@ const transactionSchema = new mongoose.Schema(
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
-      required: true,
+      required: false,
     },
 
     // 🔹 Quantity of the product transferred
     quantity: {
       type: Number,
-      required: true,
+      required: false,
       min: [1, "Quantity must be at least 1"],
     },
 
@@ -51,6 +51,8 @@ const transactionSchema = new mongoose.Schema(
         "approved_and_sent",
         "fulfilled",
         "rejected",
+        "awaiting_vendor",
+        "received"
       ],
       default: "pending_sister_incharge",
     },

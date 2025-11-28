@@ -9,41 +9,86 @@ const Transaction = require("../models/Transaction");
 
 
 // 🧑‍⚕️ Nurse creates request
+// 🧑‍⚕️ Nurse/Sister creates a request
 router.post("/", auth, authorize(["nurse", "sister_incharge"]), async (req, res) => {
   try {
-    const { product, quantity, reason, requestType } = req.body;
+    const { productName, quantity, reason } = req.body;
 
-    if (!product || !quantity)
-      return res.status(400).json({ error: "Product and quantity required" });
+    if (!productName || !quantity)
+      return res.status(400).json({ msg: "Product name and quantity required" });
 
-    const request = new Request({
-      product,
-      quantity,
-      reason,
-      requestType: requestType || "department",
-      requestedBy: req.user.id,
-      status: req.user.role === "nurse" ? "pending_sister_incharge" : "pending_hod",
+    // 1️⃣ Check if product already exists in Product collection
+    let product = await Product.findOne({ name: new RegExp(`^${productName}$`, "i") });
+
+    // CASE A: Product exists → NORMAL REQUEST
+    if (product) {
+      const request = await Request.create({
+        product: product._id,
+        quantity,
+        reason,
+        requestType: "department",
+        requestedBy: req.user.id,
+        status: req.user.role === "nurse"
+          ? "pending_sister_incharge"
+          : "pending_hod",
+      });
+
+      await Transaction.create({
+        from: { role: "Nurse" },
+        to: { role: "Sister-In-Charge" },
+        productId: product._id,
+        quantity,
+        initiatedBy: req.user.id,
+        request: request._id,
+        status: "pending_sister_incharge",
+      });
+
+      return res.json({ msg: "Normal request created", request });
+    }
+
+    // CASE B: Product does NOT exist → STORE REQUEST
+    // create NEW product entry with 0 quantity
+    product = await Product.create({
+      name: productName,
+      totalQuantity: 0,
+      category: "General"
     });
 
-    const saved = await request.save();
-    const transaction = new Transaction({
-  from: { role: "Nurse" },
-  to: { role: "Sister-In-Charge" },
-  productId: saved.product,
-  quantity: saved.quantity,
-  initiatedBy: saved.requestedBy,
-   receivedBy: null,
-  request: saved._id,
-  status: "pending_sister_incharge",
-});
-await transaction.save();
+    const storeRequest = await Request.create({
+      requestedBy: req.user.id,
+      requestType: "store_request",
+      product: null,
+      quantity,
+      items: [{
+        productId: product._id,
+        productName,
+        quantity
+      }],
+      status: "awaiting_vendor",
+      vendorStatus: "awaiting_vendor",
+    });
 
-    res.status(201).json(saved);
+    await Transaction.create({
+      from: { role: "Inventory Staff" },
+      to: { role: "Vendor" },
+      productId: product._id,
+      quantity,
+      initiatedBy: req.user.id,
+      request: storeRequest._id,
+      status: "awaiting_vendor",
+    });
+
+    return res.json({
+      msg: "Product not found → Store Request sent to Inventory Staff",
+      request: storeRequest
+    });
+
   } catch (err) {
-    console.error("❌ Request creation error:", err);
-    res.status(400).json({ error: err.message });
+    console.error("REQUEST CREATION ERROR:", err);
+    res.status(500).json({ msg: err.message });
   }
 });
+
 
 // ❌ Sister or HOD rejects a request
 router.put("/:id/reject", auth, authorize(["sister_incharge", "hod"]), async (req, res) => {
@@ -343,34 +388,38 @@ router.put("/:id/approve-inventory", auth, authorize(["inventory_staff"]), async
     // ✅ Get product and verify stock
     const product = await Product.findById(request.product._id);
     
-    if (!product || product.quantity < request.quantity) {
+    // ❌ If central store does NOT have enough stock
+if (!product || product.totalQuantity < request.quantity) {
+
+  const eta = req.body.vendorETA || "48 hours"; // dynamic time sent by Inventory Staff
+  const hours = parseInt(eta);                   // extract numeric hours
+
   request.status = "awaiting_vendor";
   request.vendorStatus = "awaiting_vendor";
-  request.vendorETA = req.body.vendorETA || "48 hours";
+  request.vendorETA = eta;
+  request.vendorETAExpiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+  request.vendorReminderSent = false;
+
   await request.save();
 
-  // Create transaction log
   const transaction = new Transaction({
     from: { role: "Inventory Staff" },
     to: { role: "Vendor" },
     productId: request.product?._id || null,
     quantity: request.quantity,
-    initiatedBy: req.user._id || req.user.id,
+    initiatedBy: req.user._id,
     request: request._id,
     status: "awaiting_vendor",
-    date: new Date(),
   });
   await transaction.save();
 
-  // 🔔 Schedule reminder before ETA
-  // (You can use node-cron, agenda, or in your case, store as a task)
-  scheduleReminder(request._id, request.vendorETA);
-
   return res.json({
-    msg: `Not in stock. Ordered from store. ETA: ${request.vendorETA}`,
-    request,
+    msg: `❌ Not in stock. Vendor arranged. ETA: ${request.vendorETA}`,
+    request
   });
 }
+
+    
 
     // ✅ Deduct quantity
     product.totalQuantity -= request.quantity;
@@ -413,6 +462,310 @@ router.put("/:id/approve-inventory", auth, authorize(["inventory_staff"]), async
   }
 });
 
+router.put("/:id/approve-inventory", auth, authorize(["inventory_staff"]), async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id)
+      .populate("product", "name")
+      .populate("requestedBy", "_id name role");
+
+    if (!request) return res.status(404).json({ msg: "Request not found" });
+
+    // 🛑 Store requests should NOT come here — they use approve-store-request
+    if (request.requestType === "store_request") {
+      return res.status(400).json({ msg: "Use /approve-store-request for store requests" });
+    }
+
+    // 🛑 Safety check
+    if (!request.product) {
+      return res.status(400).json({ msg: "No product found for this request" });
+    }
+
+    // Now proceed normally
+    const product = await Product.findById(request.product._id);
+    if (!product) return res.status(404).json({ msg: "Product not found" });
+
+    if (product.totalQuantity < request.quantity) {
+      const eta = req.body.vendorETA || "48 hours";
+      const hours = parseInt(eta);
+
+      request.status = "awaiting_vendor";
+      request.vendorStatus = "awaiting_vendor";
+      request.vendorETA = eta;
+      request.vendorETAExpiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+      request.vendorReminderSent = false;
+      await request.save();
+
+      await Transaction.create({
+        from: { role: "Inventory Staff" },
+        to: { role: "Vendor" },
+        productId: request.product._id,
+        quantity: request.quantity,
+        initiatedBy: req.user._id,
+        request: request._id,
+        status: "awaiting_vendor",
+      });
+
+      return res.json({
+        msg: `Not in stock. Vendor will supply. ETA: ${request.vendorETA}`,
+        request
+      });
+    }
+
+    // Deduct stock
+    product.totalQuantity -= request.quantity;
+    await product.save();
+
+    request.status = "approved_and_sent";
+    await request.save();
+
+    await Transaction.create({
+      from: { role: "Central Inventory" },
+      to: { role: "Department" },
+      productId: request.product._id,
+      quantity: request.quantity,
+      initiatedBy: req.user._id,
+      receivedBy: request.requestedBy._id,
+      request: request._id,
+      status: "approved_and_sent",
+    });
+
+    res.json({ msg: "Approved & dispatched successfully", request });
+
+  } catch (err) {
+    console.error("❌ approve-inventory error:", err);
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+
+// router.put("/:id/vendor-received", auth, authorize(["inventory_staff"]), async (req, res) => {
+//   try {
+//     const request = await Request.findById(req.params.id);
+//     if (!request) return res.status(404).json({ msg: "Request not found" });
+
+//     if (request.requestType !== "store_request") {
+//       return res.status(400).json({ msg: "Not a store-request" });
+//     }
+
+//     if (request.status !== "awaiting_vendor") {
+//       return res.status(400).json({ msg: "Request is not awaiting vendor delivery" });
+//     }
+
+//     // 🔥 Process each item independently
+//     for (const item of request.items) {
+//       const product = await Product.findById(item.productId);
+
+//       if (!product) continue; // shouldn't happen
+
+//       // 🟩 Add delivered quantity to central store
+//       product.totalQuantity += item.quantity;
+//       await product.save();
+//     }
+
+//     // 🔄 Update request
+//     request.vendorStatus = "received";
+//     request.status = "pending_inventory_approval"; // inventory staff will now dispatch
+//     request.vendorETAExpiresAt = null;
+//     request.vendorReminderSent = true;
+//     await request.save();
+
+//     // 📝 Log transaction
+//     await Transaction.create({
+//       from: { role: "Vendor" },
+//       to: { role: "Central Inventory" },
+//       productId: null, // because multi-item delivery
+//       quantity: request.quantity,
+//       request: request._id,
+//       initiatedBy: req.user.id,
+//       status: "received"
+//     });
+
+//     res.json({ msg: "Vendor delivered all items → Central inventory updated", request });
+
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ msg: err.message });
+//   }
+// });
+
+// ✅ Inventory Staff approves & sends store-request items
+router.put("/:id/approve-store-request", auth, authorize(["inventory_staff"]), async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ msg: "Store request not found" });
+
+    if (request.requestType !== "store_request") {
+      return res.status(400).json({ msg: "Not a store request" });
+    }
+
+    // must be after vendor delivered OR already fulfilled directly
+    if (!["awaiting_vendor", "fulfilled"].includes(request.status)) {
+      return res.status(400).json({ msg: "Store request not ready for approval" });
+    }
+
+    // Update status
+    request.status = "approved_and_sent";
+    request.vendorStatus = "stored";
+    await request.save();
+
+    // Log transaction
+    await Transaction.create({
+      from: { role: "Central Inventory" },
+      to: { role: "Department" },
+      initiatedBy: req.user.id,
+      request: request._id,
+      status: "approved_and_sent",
+      productId: null,
+      quantity: null
+    });
+
+    res.json({ msg: "Store request approved & sent successfully", request });
+
+  } catch (err) {
+    console.error("Store approval error:", err);
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+router.post("/store-request", auth, authorize([
+  "nurse",
+  "sister_incharge",
+  "hod",
+  "inventory_staff",
+  "admin"
+]), async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ msg: "Items array is required" });
+    }
+
+    const processedItems = [];
+    let requestNeedsVendor = false;
+    let totalQuantity = 0;
+
+    for (const i of items) {
+      const name = i.product.trim();
+      const qty = Number(i.quantity);
+      totalQuantity += qty;
+
+      // 1️⃣ Check if product exists
+      let product = await Product.findOne({ name: new RegExp(`^${name}$`, "i") });
+
+      if (product) {
+        // 2️⃣ Product exists → check quantity
+        if (product.totalQuantity >= qty) {
+          product.totalQuantity -= qty;
+          await product.save();
+
+          processedItems.push({
+            productId: product._id,
+            productName: name,
+            quantity: qty,
+            source: "central"
+          });
+        } else {
+          requestNeedsVendor = true;
+
+          processedItems.push({
+            productId: product._id,
+            productName: name,
+            quantity: qty,
+            source: "vendor"
+          });
+        }
+      } else {
+        // 3️⃣ Product doesn't exist → create it
+        product = await Product.create({
+          name,
+          totalQuantity: 0,
+          category: "General"
+        });
+
+        requestNeedsVendor = true;
+
+        processedItems.push({
+          productId: product._id,
+          productName: name,
+          quantity: qty,
+          source: "vendor"
+        });
+      }
+    }
+
+    // 4️⃣ Create request
+    const storeRequest = await Request.create({
+      requestedBy: req.user.id,
+      requestType: "store_request",
+      items: processedItems,
+      quantity: totalQuantity,      // 🔥 ROOT LEVEL QUANTITY
+      product: null,                // 🔥 Because multiple items
+      status: requestNeedsVendor ? "awaiting_vendor" : "fulfilled",
+      vendorStatus: requestNeedsVendor ? "awaiting_vendor" : "stored",
+    });
+
+    // 5️⃣ Log transaction
+    await Transaction.create({
+      from: { role: requestNeedsVendor ? "Inventory Staff" : "Central Inventory" },
+      to: { role: requestNeedsVendor ? "Vendor" : "Department" },
+      productId: null,
+      quantity: totalQuantity,
+      initiatedBy: req.user.id,
+      request: storeRequest._id,
+      status: requestNeedsVendor ? "awaiting_vendor" : "fulfilled"
+    });
+
+    res.json({
+      msg: requestNeedsVendor
+        ? "Some items need to be ordered from vendor."
+        : "All items fulfilled from central stock.",
+      request: storeRequest
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+
+
+// router.put("/:id/vendor-received", auth, authorize(["inventory_staff"]), async (req, res) => {
+//   try {
+//     const request = await Request.findById(req.params.id).populate("product");
+//     if (!request) return res.status(404).json({ msg: "Request not found" });
+
+//     if (request.status !== "awaiting_vendor") {
+//       return res.status(400).json({ msg: "Request is not awaiting vendor delivery" });
+//     }
+
+//     // update in central inventory
+//     const product = await Product.findById(request.product._id);
+//     product.totalQuantity += request.quantity;
+//     await product.save();
+
+//     request.vendorStatus = "received";
+//     request.status = "pending_inventory_approval"; // ready to dispatch
+//     request.vendorETAExpiresAt = null;
+//     request.vendorReminderSent = true; // stop reminders
+//     await request.save();
+
+//     await new Transaction({
+//       from: { role: "Vendor" },
+//       to: { role: "Central Inventory" },
+//       productId: product._id,
+//       quantity: request.quantity,
+//       request: request._id,
+//       status: "received",
+//     }).save();
+
+//     res.json({ msg: "Vendor delivered — added to central stock", request });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ msg: err.message });
+//   }
+// });
 
 // // Step 4: Sister In-Charge Receiving
 // // ✅ Sister In-Charge marks as received and stores in correct inventory
@@ -498,6 +851,7 @@ router.put("/:id/approve-inventory", auth, authorize(["inventory_staff"]), async
 
 
 // ✅ Sister-In-Charge marks as received and stores in correct inventory
+
 router.put("/:id/mark-received", auth, authorize(["sister_incharge"]), async (req, res) => {
   try {
     const request = await Request.findById(req.params.id)
@@ -594,7 +948,10 @@ router.get("/", auth, async (req, res) => {
 
     // Sister sees everything in her department (for simplicity now — all pending + hers)
     else if (req.user.role === "sister_incharge") {
-  filter = { status: { $in: ["pending_sister_incharge", "pending_hod", "approved", "approved_and_sent"] } };
+  filter = { status: { $in: ["pending_sister_incharge", "pending_hod", "pending_inventory_approval", "approved", "approved_and_sent",
+     "awaiting_vendor",
+        "fulfilled"
+  ] } };
 }
 
 
