@@ -25,6 +25,11 @@ const vendorOrderSchema = new mongoose.Schema({
     enum: ["requested", "ordered", "received"],
     default: "requested",
   },
+  // ✅ Add ETA
+  etaHours: {
+    type: Number,
+    default: null,
+  },
   billFile: {
     type: String, // Firebase or local file URL
   },

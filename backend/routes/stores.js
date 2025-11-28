@@ -2,6 +2,7 @@ const express = require("express");
 const VendorOrder = require("../models/VendorOrder");
 const { auth } = require("../middleware/auth"); // ensure this matches your setup
 const router = express.Router();
+const Product = require("../models/Product");
 
 // ✅ Create a single vendor order
 router.post("/", auth, async (req, res) => {
@@ -42,12 +43,17 @@ router.post("/batch", auth, async (req, res) => {
     }
 
     const createdOrders = await VendorOrder.insertMany(
-      items.map((item) => ({
-        ...item,
-        orderedBy: req.user.id,
-        totalCost: item.quantity * item.unitPrice,
-      }))
-    );
+  items.map((item) => ({
+    productName: item.productName,
+    quantity: item.quantity,
+    vendorName: item.vendorName,
+    unitPrice: item.unitPrice,
+    etaHours: item.etaHours, // <-- 🔥 ensure this is stored
+    orderedBy: req.user.id,
+    totalCost: item.quantity * item.unitPrice,
+  }))
+);
+
 
     res.json({ msg: "Batch orders created successfully", createdOrders });
   } catch (err) {
@@ -67,7 +73,7 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// ✅ Mark order as received
+// 📌 Mark vendor order as received & update inventory
 router.put("/:id/mark-received", auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -76,17 +82,42 @@ router.put("/:id/mark-received", auth, async (req, res) => {
     const order = await VendorOrder.findById(id);
     if (!order) return res.status(404).json({ msg: "Order not found" });
 
+    // Update order status
     order.status = "received";
     order.receivedAt = new Date();
     order.receivedBy = req.user.id;
     if (billFile) order.billFile = billFile;
 
+    // 🔍 Check if product exists in stock DB
+    let product = await Product.findOne({ name: order.productName });
+
+    if (product) {
+      // ✳ Update quantity for existing product
+      product.totalQuantity += order.quantity;
+    } else {
+      // 🆕 Create a new product record
+      product = new Product({
+        name: order.productName,
+        vendor: order.vendorName || "",
+        pricePerUnit: order.unitPrice || 0,
+        totalQuantity: order.quantity,
+        category: "General",
+      });
+    }
+
+    await product.save();
     await order.save();
-    res.json({ msg: "Order marked as received", order });
+
+    res.json({
+      msg: "📦 Inventory updated successfully",
+      order,
+      updatedStock: product,
+    });
   } catch (err) {
-    console.error("Error marking order received:", err);
+    console.error("❌ Error marking order received:", err);
     res.status(500).json({ msg: "Server error" });
   }
 });
+
 
 module.exports = router;
