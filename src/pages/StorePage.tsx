@@ -6,15 +6,60 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Upload, Eye, FileText } from "lucide-react";
 
 const MAX_ITEMS = 10;
+
+// Helper to resize and compress images before upload
+const resizeImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        
+        // Max dimensions (e.g., 800px) to keep size low
+        const MAX_DIMENSION = 800;
+
+        if (width > height) {
+          if (width > MAX_DIMENSION) {
+            height *= MAX_DIMENSION / width;
+            width = MAX_DIMENSION;
+          }
+        } else {
+          if (height > MAX_DIMENSION) {
+            width *= MAX_DIMENSION / height;
+            height = MAX_DIMENSION;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG with 70% quality
+        resolve(canvas.toDataURL("image/jpeg", 0.7)); 
+      };
+      img.onerror = (err) => reject(err);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
 
 const StorePage = () => {
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  // Stores base64 strings of the uploaded images mapped by order ID
   const [billFiles, setBillFiles] = useState<{ [key: string]: string }>({});
+  
   const [orderItems, setOrderItems] = useState([
     { productName: "", quantity: "", vendorName: "", unitPrice: "", etaHours: "" },
   ]);
@@ -85,14 +130,36 @@ const StorePage = () => {
     }
   };
 
-  const handleBillChange = (id: string, value: string) => {
-    setBillFiles((prev) => ({ ...prev, [id]: value }));
+  // Convert uploaded file to Base64 string with Compression
+  const handleFileChange = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const resizedImage = await resizeImage(file);
+        setBillFiles((prev) => ({ ...prev, [id]: resizedImage }));
+        toast({ title: "Bill Uploaded", description: "Image compressed and attached successfully." });
+      } catch (error) {
+        console.error(error);
+        toast({ title: "Error", description: "Failed to process image.", variant: "destructive" });
+      }
+    }
   };
 
   const handleMarkReceived = async (id: string) => {
+    if (!billFiles[id]) {
+      toast({ title: "Bill Required", description: "Please upload a bill photo before marking as received.", variant: "destructive" });
+      return;
+    }
+
     try {
       await apiClient.markStoreOrderReceived(id, billFiles[id]);
       toast({ title: "✅ Marked as received" });
+      // Clear the file from state after success
+      setBillFiles((prev) => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
       fetchOrders();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -190,24 +257,62 @@ const StorePage = () => {
                 key={order._id}
                 className="flex flex-col md:flex-row justify-between items-start md:items-center border rounded-lg p-4"
               >
-                <div>
+                <div className="space-y-1">
                   <p className="font-semibold text-lg">{order.productName}</p>
-                  <p>Vendor: {order.vendorName}</p>
-                  <p>Quantity: {order.quantity}</p>
-                  <p>Unit Price: ₹{order.unitPrice}</p>
-                  <p>Total: ₹{order.totalCost || order.quantity * order.unitPrice}</p>
-                  <p>ETA: {Number(order.etaHours) > 0 ? `${order.etaHours} hrs` : "N/A"}</p>
-
-                  <p>Status: <span className="text-blue-600">{order.status}</span></p>
+                  <p className="text-sm text-slate-600">Vendor: {order.vendorName}</p>
+                  <p className="text-sm text-slate-600">Quantity: {order.quantity} | Unit Price: ₹{order.unitPrice}</p>
+                  <p className="text-sm text-slate-600">Total: ₹{order.totalCost || order.quantity * order.unitPrice}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                     <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                        ETA: {Number(order.etaHours) > 0 ? `${order.etaHours} hrs` : "N/A"}
+                     </span>
+                     <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded uppercase">
+                        {order.status}
+                     </span>
+                  </div>
                 </div>
-                <div className="mt-3 md:mt-0 flex flex-col gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Enter bill reference"
-                    value={billFiles[order._id] || ""}
-                    onChange={(e) => handleBillChange(order._id, e.target.value)}
-                  />
-                  <Button onClick={() => handleMarkReceived(order._id)}>Mark as Received</Button>
+                
+                <div className="mt-4 md:mt-0 flex flex-col gap-3 w-full md:w-auto">
+                  <div className="flex items-center gap-2">
+                     <div className="relative">
+                        <Input
+                          id={`file-${order._id}`}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleFileChange(order._id, e)}
+                        />
+                        <label 
+                           htmlFor={`file-${order._id}`} 
+                           className={`flex items-center justify-center gap-2 cursor-pointer border rounded-md px-3 py-2 text-sm font-medium transition-colors ${billFiles[order._id] ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        >
+                           <Upload className="w-4 h-4" />
+                           {billFiles[order._id] ? "Bill Uploaded" : "Upload Bill"}
+                        </label>
+                     </div>
+                     {billFiles[order._id] && (
+                        <Dialog>
+                           <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                 <Eye className="w-4 h-4 text-slate-500" />
+                              </Button>
+                           </DialogTrigger>
+                           <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                 <DialogTitle>Bill Preview</DialogTitle>
+                              </DialogHeader>
+                              <img src={billFiles[order._id]} alt="Bill Preview" className="w-full rounded-lg border" />
+                           </DialogContent>
+                        </Dialog>
+                     )}
+                  </div>
+                  <Button 
+                     onClick={() => handleMarkReceived(order._id)} 
+                     disabled={!billFiles[order._id]}
+                     className={billFiles[order._id] ? "bg-blue-600 hover:bg-blue-700" : ""}
+                  >
+                     Mark as Received
+                  </Button>
                 </div>
               </div>
             ))}
@@ -226,19 +331,43 @@ const StorePage = () => {
               logs.map((log) => (
                 <div
                   key={log._id}
-                  className="border rounded-lg p-4 flex justify-between items-center"
+                  className="border rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3"
                 >
                   <div>
-                    <p className="font-semibold">{log.productName}</p>
-                    <p>Vendor: {log.vendorName}</p>
-                    <p>Quantity: {log.quantity}</p>
-                    <p>Total Cost: ₹{log.totalCost}</p>
-                    <p>Bill: {log.billFile || "N/A"}</p>
-                    <p className="text-green-600">✅ Received</p>
+                    <div className="flex items-center gap-2">
+                       <p className="font-semibold">{log.productName}</p>
+                       <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                          ✅ Received
+                       </span>
+                    </div>
+                    <p className="text-sm text-slate-600">Vendor: {log.vendorName}</p>
+                    <p className="text-sm text-slate-600">Qty: {log.quantity} • Cost: ₹{log.totalCost}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(log.updatedAt).toLocaleString()}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(log.updatedAt).toLocaleString()}
-                  </p>
+                  
+                  <div>
+                     {log.billFile && log.billFile.startsWith("data:image") ? (
+                        <Dialog>
+                           <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                 <FileText className="w-4 h-4" /> View Bill
+                              </Button>
+                           </DialogTrigger>
+                           <DialogContent className="max-w-lg">
+                              <DialogHeader>
+                                 <DialogTitle>Stored Bill</DialogTitle>
+                              </DialogHeader>
+                              <div className="mt-2">
+                                 <img src={log.billFile} alt="Stored Bill" className="w-full h-auto rounded-lg border shadow-sm" />
+                              </div>
+                           </DialogContent>
+                        </Dialog>
+                     ) : (
+                        <span className="text-xs text-slate-400 italic">No bill image</span>
+                     )}
+                  </div>
                 </div>
               ))
             )}
