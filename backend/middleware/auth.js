@@ -14,9 +14,6 @@ const auth = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    console.log("🔐 FULL TOKEN DECODED:", decoded);
-
     // Support both formats
     // req.user = decoded.user || decoded;
 

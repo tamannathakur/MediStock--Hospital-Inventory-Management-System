@@ -11,9 +11,6 @@ console.log("📦 [requests] request.store.js loaded");
 // Create a store-request (multi-item) — used when product not in central or insufficient
 router.post("/store-request", auth, authorize(["nurse","sister_incharge","hod","inventory_staff","admin"]), async (req, res) => {
   try {
-    console.log("🔐 AUTH HEADERS:", req.headers.authorization);
-console.log("🔍 req.user BEFORE:", req.user);
-     console.log("🔥 STORE-REQUEST HIT");
     const { items , reason} = req.body;
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ msg: "Items array required" });
 
@@ -54,16 +51,15 @@ if (req.user.role === "sister_incharge") {
 if (req.user.role === "inventory_staff") {
   initialStatus = "awaiting_vendor";
 }
-
+   console.log("requested by:", req.user.id);
     const storeRequest = await Request.create({
-      requestedBy: req.user._id,
+      requestedBy: req.user.id,
       requestType: "store_request",
       items: processed,
       quantity: totalQ,
       status: initialStatus,
       vendorStatus: needsVendor ? null : "stored",
       vendorETA: null,
-      requestedBy: req.user._id,
       vendorETAExpiresAt: null,
       reason,
     });

@@ -15,7 +15,7 @@ router.post("/", auth, authorize(["nurse", "sister_incharge"]), async (req, res)
 
     // find product (case-insensitive)
     let product = await Product.findOne({ name: new RegExp(`^${productName}$`, "i") });
-
+    console.log("requested by:", req.user.id);
     // CASE A: product exists & enough stock => normal department request
     if (product && product.totalQuantity >= quantity) {
       const request = await Request.create({
@@ -23,7 +23,7 @@ router.post("/", auth, authorize(["nurse", "sister_incharge"]), async (req, res)
         quantity,
         reason,
         requestType: "department",
-        requestedBy: req.user._id,
+        requestedBy: req.user.id,
         status: req.user.role === "nurse" ? "pending_sister_incharge" : "pending_hod",
       });
 
@@ -39,11 +39,11 @@ router.post("/", auth, authorize(["nurse", "sister_incharge"]), async (req, res)
 
       return res.json({ msg: "Normal department request created", request });
     }
-
+    console.log("requested by:", req.user.id);
     // CASE C: product exists but insufficient quantity => generate store_request (vendor)
     if (product && product.totalQuantity < quantity) {
       const storeRequest = await Request.create({
-        requestedBy: req.user._id,
+        requestedBy: req.user.id,
         requestType: "store_request",
         product: null,
         quantity,
@@ -67,9 +67,9 @@ router.post("/", auth, authorize(["nurse", "sister_incharge"]), async (req, res)
 
     // CASE B: product does not exist → create product (0 qty) + store request
     product = await Product.create({ name: productName, totalQuantity: 0, category: "General" });
-
+    console.log("requested by:", req.user.id);
     const storeRequest = await Request.create({
-      requestedBy: req.user._id,
+      requestedBy: req.user.id,
       requestType: "store_request",
       product: null,
       quantity,

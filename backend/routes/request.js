@@ -287,15 +287,6 @@ router.put("/:id/fulfill", auth, authorize(["inventory_staff"]), async (req, res
 //       .populate("product", "name")
 //       .populate("requestedBy", "_id name role");
 
-//       console.log("===== DEBUG START =====");
-//     console.log("Request found:", !!request);
-//     if (request) {
-//       console.log("Request ID:", request._id.toString());
-//       console.log("Requested By:", request.requestedBy);
-//       console.log("req.user (logged-in user):", req.user);
-//     }
-//     console.log("===== DEBUG END =====");
-
 //     if (!request) return res.status(404).json({ msg: "Request not found" });
 
 //     // ✅ Deduct from central stock (Product)
