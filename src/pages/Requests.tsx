@@ -16,13 +16,13 @@ import { Plus, CheckCircle, XCircle } from "lucide-react";
 interface Request {
   _id: string;
   requested_by: string;
-  product_id: string;
+  product: string;
   quantity: number;
   status: string;
   request_level: string;
   department_id: string;
-  notes: string;
-  created_at: string;
+  reason: string;
+  createdAt: string;
 }
 
 const Requests = () => {
@@ -30,15 +30,22 @@ const Requests = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("");
+  const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
+
+const [storeItems, setStoreItems] = useState([
+  { product: "", quantity: "" }
+]);
+
   const [userId, setUserId] = useState<string>("");
   const [requests, setRequests] = useState<Request[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    product_id: "",
+    product: "",
+    product_name: "",
     quantity: "",
-    notes: "",
+    reason: "",
     request_level: "department",
     department_id: "",
   });
@@ -67,14 +74,69 @@ const Requests = () => {
     checkAuth();
   }, [navigate]);
 
+  const handleStoreItemChange = (index, field, value) => {
+  const updated = [...storeItems];
+  updated[index][field] = value;
+  setStoreItems(updated);
+};
+
+const addStoreItemRow = () => {
+  setStoreItems([...storeItems, { product: "", quantity: "" }]);
+};
+
+const removeStoreItemRow = (index) => {
+  const updated = storeItems.filter((_, i) => i !== index);
+  setStoreItems(updated);
+};
+
+const handleSubmitStoreRequest = async () => {
+  try {
+    await apiClient.createStoreRequest({
+      items: storeItems.map((i) => ({
+        product: i.product,
+        quantity: parseInt(i.quantity)
+      }))
+    });
+
+    toast({ title: "🛒 Store request created successfully" });
+    setIsStoreDialogOpen(false);
+    setStoreItems([{ product: "", quantity: "" }]);
+    fetchRequests();
+  } catch (err) {
+    console.error("Store request failed:", err);
+    toast({ title: "Error creating store request", variant: "destructive" });
+  }
+};
+
+  // const fetchRequests = async () => {
+  //   try {
+  //     const data = await apiClient.listRequests();
+  //     if (Array.isArray(data)) setRequests(data.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  //   } catch (err) {
+  //     console.error('Failed to fetch requests', err);
+  //   }
+  // };
+
   const fetchRequests = async () => {
-    try {
-      const data = await apiClient.listRequests();
-      if (Array.isArray(data)) setRequests(data.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-    } catch (err) {
-      console.error('Failed to fetch requests', err);
+  try {
+    const data = await apiClient.listRequests();
+    console.log("📌 RAW REQUESTS FROM API:", data);
+
+    if (Array.isArray(data)) {
+      const sorted = data.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      console.log("📌 SORTED REQUESTS:", sorted);
+
+      setRequests(sorted);
+    } else {
+      console.warn("⚠️ listRequests did not return an array: ", data);
+      setRequests([]);
     }
-  };
+  } catch (err) {
+    console.error("🚨 fetchRequests ERROR:", err);
+  }
+};
 
   const fetchProducts = async () => {
     try {
@@ -108,12 +170,11 @@ const Requests = () => {
   const handleCreateRequest = async () => {
     try {
       // backend expects productId, quantity, reason; route is /departments/:id/request
-     + await apiClient.createRequest({ product: formData.product_id, quantity: parseInt(formData.quantity),
-      reason: formData.notes,});
+     + await apiClient.createRequest({ product: formData.product, quantity: parseInt(formData.quantity)});
       toast({ title: 'Request created successfully' });
       setIsDialogOpen(false);
       fetchRequests();
-      setFormData({ product_id: '', quantity: '', notes: '', request_level: 'department', department_id: '' });
+      setFormData({product: '', quantity: '', reason: '', request_level: 'department', department_id: '' });
     } catch (err) {
       toast({ title: 'Error creating request', reason: (err as Error).message || 'Failed', variant: 'destructive' });
     }
@@ -142,16 +203,33 @@ const Requests = () => {
   }
 };
 
-const handleApproveInventory = async (id: string) => {
+// const handleApproveInventory = async (id: string) => {
+//   try {
+//     await apiClient.approveInventoryRequest(id); // call backend route for inventory staff approval
+//     toast({ title: "✅ Request approved and sent by inventory staff" });
+//     fetchRequests();
+//   } catch (err) {
+//     console.error("❌ Inventory approval failed:", err);
+//     toast({ title: "Error approving request", variant: "destructive" });
+//   }
+// };
+const handleApproveInventory = async (id: string, isStoreItem: boolean) => {
   try {
-    await apiClient.approveInventoryRequest(id); // call backend route for inventory staff approval
-    toast({ title: "✅ Request approved and sent by inventory staff" });
+    if (isStoreItem) {
+      await apiClient.approveStoreRequest(id); // Vendor flow
+      toast({ title: "🚚 Dispatched from store" });
+    } else {
+      await apiClient.approveInventoryRequest(id); // Central store flow
+      toast({ title: "📦 Request fulfilled from central store" });
+    }
+
     fetchRequests();
   } catch (err) {
     console.error("❌ Inventory approval failed:", err);
-    toast({ title: "Error approving request", variant: "destructive" });
+    toast({ title: "Approval failed", variant: "destructive" });
   }
 };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -172,154 +250,167 @@ const handleApproveInventory = async (id: string) => {
             <h1 className="text-3xl font-bold tracking-tight">Requests</h1>
             <p className="text-muted-foreground">Manage product and equipment requests</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Request
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-  <DialogHeader>
-    <DialogTitle>Create New Request</DialogTitle>
-  </DialogHeader>
-  <div className="space-y-4">
-    <div>
-      <Label>Product</Label>
-      <Select value={formData.product_id} onValueChange={(v) => setFormData({ ...formData, product_id: v })}>
-        <SelectTrigger>
-          <SelectValue placeholder="Select product" />
-        </SelectTrigger>
-        <SelectContent>
-          {products.map((p) => (
-            <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
+
+  <div className="flex gap-3">
+
+    
+
+    {/* STORE REQUEST (inventory staff) */}
+    <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">Request Items</Button>
+      </DialogTrigger>
+
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Store Request</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+          {storeItems.map((item, index) => (
+            <div key={index} className="border rounded-lg p-3 space-y-3">
+              <div>
+                <Label>Product</Label>
+                <Input
+  placeholder="Type product name (or select existing)"
+  value={item.product}
+  onChange={(e) =>
+    handleStoreItemChange(index, "product", e.target.value)
+  }
+  list="product-list"
+/>
+
+                 <datalist id="product-list">
+    {products.map((p) => (
+      <option key={p._id} value={p.name} />
+    ))}
+  </datalist>
+              </div>
+
+              <div>
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  value={item.quantity}
+                  onChange={(e) =>
+                    handleStoreItemChange(index, "quantity", e.target.value)
+                  }
+                />
+              </div>
+
+              {storeItems.length > 1 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => removeStoreItemRow(index)}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
           ))}
-        </SelectContent>
-      </Select>
-    </div>
 
-    <div>
-      <Label>Quantity</Label>
-      <Input
-        type="number"
-        value={formData.quantity}
-        onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-      />
-    </div>
+          <Button variant="outline" onClick={addStoreItemRow} className="w-full">
+            + Add Another Product
+          </Button>
 
-    <div>
-      <Label>Notes</Label>
-      <Textarea
-        value={formData.notes}
-        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-      />
-    </div>
-
-    <Button onClick={handleCreateRequest} className="w-full">
-      Create Request
-    </Button>
-  </div>
-</DialogContent>
-
-          </Dialog>
+          <Button className="w-full" onClick={handleSubmitStoreRequest}>
+            Submit Store Request
+          </Button>
         </div>
-
-        {/* <div className="grid gap-4">
-          {requests.map((req) => (
-            
-            <Card key={req._id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">
-{products.find(p => p._id === req.product_id)?.name || req.product?.name || "Unknown Product"}
-
-                  </CardTitle>
-                  <Badge variant={getStatusColor(req.status)}>{req.status}</Badge>
-                </div>
-              </CardHeader> */}
-              
-              {/* <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm"><span className="font-medium">Quantity:</span> {req.quantity}</p>
-                  <p className="text-sm"><span className="font-medium">Level:</span> {req.request_level}</p>
-                  {req.notes && <p className="text-sm text-muted-foreground">{req.notes}</p>} */}
-                  {/* Sister-In-Charge Approves Nurse Requests */}
-{/* 🩺 Sister-In-Charge Actions */}
-{/* {userRole?.toLowerCase() === "sister_incharge" && (
-  <> */}
-    {/* 🔹 Approve/Reject Nurse Requests */}
-    {/* {req.status?.toLowerCase().trim() === "pending_sister_incharge" && (
-      <div className="flex gap-2 mt-4">
-        <Button size="sm" onClick={() => handleApprove(req._id)}>
-          <CheckCircle className="mr-2 h-4 w-4" /> Approve
-        </Button>
-        <Button size="sm" variant="destructive" onClick={() => handleReject(req._id)}>
-          <XCircle className="mr-2 h-4 w-4" /> Reject
-        </Button>
-      </div>
-    )} */}
-
-    {/* 🔹 Mark as Received (after Inventory sends it) */}
-    {/* {req.status?.toLowerCase().trim() === "approved_and_sent" && (
-      <div className="mt-4">
-        <Button
-          size="sm"
-          onClick={() => {
-            handleMarkReceived(req._id);
-          }}
-        >
-          <CheckCircle className="mr-2 h-4 w-4" /> Mark as Received
-        </Button>
-      </div>
-    )}
-  </>
-)} */}
-{/* 
-
-{userRole === "inventory_staff" && req.status === "pending_inventory_approval" && (
-  <button onClick={() => handleApproveInventory(req._id)}>Approve & Send</button>
-)} */}
-
-
-{/* HOD Approves Sister-In-Charge Requests */}
-{/* {userRole === "hod" && req.status === "pending_hod" && (
-  <div className="flex gap-2 mt-4">
-    <Button size="sm" onClick={() => handleApprove(req._id)}>
-      <CheckCircle className="mr-2 h-4 w-4" />
-      Approve
-    </Button>
-    <Button size="sm" variant="destructive" onClick={() => handleReject(req._id)}>
-      <XCircle className="mr-2 h-4 w-4" />
-      Reject
-    </Button>
+      </DialogContent>
+    </Dialog>
   </div>
-)} */}
-{/* 
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-       </div> */}
+</div>
+
        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-  {requests.map((req) => {
-    const productName =
-      products.find((p) => p._id === req.product_id)?.name ||
-      req.product?.name ||
-      "Unknown Product";
+  {/* {requests
+  .flatMap((req) => {
+  // STORE REQUEST
+  if (req.requestType === "store_request" && Array.isArray(req.items)) {
+    return req.items.map((item, index) => ({
+      frontendId: `${req._id}_${index}`,
+      realId: req._id,
+      productName: item.productName,
+      quantity: item.quantity,
+      status: req.status,
+      vendorETA: req.vendorETA,
+      vendorStatus: req.vendorStatus,
+      vendorETAExpiresAt: req.vendorETAExpiresAt,
+      isStoreRequest: true
+    }));
+  }
+
+  // NORMAL CENTRAL REQUEST
+  const product = products.find(p => p._id === req.product);
+  return [{
+    frontendId: req._id,
+    realId: req._id,
+    productName: product?.name ?? "Unknown Product",
+    quantity: req.quantity,
+    status: req.status,
+    isStoreRequest: false
+  }];
+ })
+
+  .map((req) => {
+
+    // REPLACEMENT ✔ */}
+    {requests
+  .flatMap((req) => {
+  // STORE REQUESTS
+  if (req.requestType === "store_request" && Array.isArray(req.items)) {
+    return req.items.map((item, index) => ({
+      frontendId: `${req._id}_${index}`,
+      realId: req._id,
+      productName: item.productName ?? "Unknown",
+      quantity: item.quantity,
+      status: req.status,
+      vendorETA: req.vendorETA,
+      vendorETAExpiresAt: req.vendorETAExpiresAt,
+      vendorStatus: req.vendorStatus,
+      createdAt: req.createdAt,
+      isStoreRequest: true,
+    }));
+  }
+
+  // NORMAL REQUESTS
+  return [{
+    frontendId: req._id,
+    realId: req._id,
+    productName: req.product?.name ?? "Unknown Product",
+    quantity: req.quantity,
+    status: req.status,
+    createdAt: req.createdAt,
+    vendorETA: req.vendorETA,
+    vendorETAExpiresAt: req.vendorETAExpiresAt,
+    vendorStatus: req.vendorStatus,
+    isStoreRequest: false,
+  }];
+})
+
+  .map((req) => {
+    console.log("🎯 CARD RENDER:", req);
+
+    const productName = req.productName;
 
     const status = req.status?.toLowerCase().trim();
 
+
     const statusStyles: Record<string, string> = {
-      pending_sister_incharge: "bg-yellow-50 text-yellow-800 border border-yellow-300",
-      pending_hod: "bg-blue-50 text-blue-800 border border-blue-300",
-      approved_and_sent: "bg-green-50 text-green-800 border border-green-300",
-      fulfilled: "bg-emerald-50 text-emerald-800 border border-emerald-300",
-      rejected: "bg-red-50 text-red-800 border border-red-300",
-    };
+  pending_sister_incharge: "bg-yellow-50 text-yellow-800 border border-yellow-300",
+  pending_hod: "bg-blue-50 text-blue-800 border border-blue-300",
+  pending_inventory_approval: "bg-purple-50 text-purple-800 border border-purple-300",
+  approved_and_sent: "bg-green-50 text-green-800 border border-green-300",
+  fulfilled: "bg-emerald-50 text-emerald-800 border border-emerald-300",
+  awaiting_vendor: "bg-orange-50 text-orange-800 border border-orange-300",
+  received_from_vendor: "bg-teal-50 text-teal-800 border border-teal-300",
+  rejected: "bg-red-50 text-red-800 border border-red-300",
+};
 
     return (
       <Card
-        key={req._id}
+        key={req.frontendId}
         className="shadow-md hover:shadow-xl transition-all duration-300 rounded-xl border border-gray-200 hover:border-gray-300"
       >
         <CardHeader className="pb-3">
@@ -348,14 +439,85 @@ const handleApproveInventory = async (id: string) => {
               {new Date(req.createdAt).toLocaleString()}
             </p>
           </div>
+          {/* Vendor ETA Info */}
+{req.vendorETA && (
+  <p className="text-sm text-orange-700 font-medium">
+    ETA: {req.vendorETA}
+  </p>
+)}
 
-          {req.notes && (
+{req.vendorETAExpiresAt && (
+  <p className="text-sm text-orange-600">
+    Time left: {
+      Math.max(
+        0,
+        Math.floor((new Date(req.vendorETAExpiresAt).getTime() - Date.now()) / 3600000)
+      )
+    } hours
+  </p>
+)}
+{req.vendorStatus && (
+  <p className="text-sm text-gray-700">
+    Vendor Status: <b>{req.vendorStatus.replace(/_/g, " ")}</b>
+  </p>
+)}
+
+          {req.reason && (
             <div className="border-l-4 border-gray-300 pl-3 mt-2">
-              <p className="text-sm italic text-gray-600">“{req.notes}”</p>
+              <p className="text-sm italic text-gray-600">“{req.reason}”</p>
             </div>
           )}
 
           <div className="mt-4 flex flex-wrap gap-3">
+
+            {/* Inventory Staff: Vendor Delivered */}
+{/* 🧰 Inventory Staff: Assign ETA (only once) */}
+{userRole === "inventory_staff" &&
+ req.status === "awaiting_vendor" &&
+ !req.vendorETA && (
+  <Button
+    size="sm"
+    className="bg-orange-600 hover:bg-orange-700 text-white px-5"
+    onClick={async () => {
+      const eta = prompt("Enter ETA in hours:");
+      if (!eta) return;
+
+      try {
+        await apiClient.setVendorETA(req.realId, parseInt(eta));
+        toast({ title: "ETA updated successfully" });
+        fetchRequests();
+      } catch (err) {
+        console.error("ETA error:", err);
+        toast({ title: "Error updating ETA", variant: "destructive" });
+      }
+    }}
+  >
+    Assign ETA & Process
+  </Button>
+)}
+
+{userRole === "inventory_staff" &&
+  status === "awaiting_vendor" &&
+  req.vendorETA && (
+    <Button
+      size="sm"
+      className="bg-teal-600 hover:bg-teal-700 text-white px-5"
+      onClick={async () => {
+        try {
+          await apiClient.vendorReceived(req.realId);
+          toast({ title: "📦 Vendor delivery received" });
+          fetchRequests();
+        } catch (err) {
+          console.error("Error marking vendor delivered", err);
+          toast({ title: "Vendor update failed", variant: "destructive" });
+        }
+      }}
+    >
+      Vendor Delivered
+    </Button>
+)}
+
+
             {/* 👩‍⚕️ Sister-In-Charge Actions */}
             {userRole?.toLowerCase() === "sister_incharge" && (
               <>
@@ -363,7 +525,7 @@ const handleApproveInventory = async (id: string) => {
                   <>
                     <Button
                       size="sm"
-                      onClick={() => handleApprove(req._id)}
+                      onClick={() => handleApprove(req.realId)}
                       className="bg-green-600 hover:bg-green-700 text-white px-4"
                     >
                       <CheckCircle className="mr-2 h-4 w-4" />
@@ -372,7 +534,7 @@ const handleApproveInventory = async (id: string) => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleReject(req._id)}
+                      onClick={() => handleReject(req.realId)}
                       className="px-4"
                     >
                       <XCircle className="mr-2 h-4 w-4" />
@@ -384,7 +546,7 @@ const handleApproveInventory = async (id: string) => {
                 {status === "approved_and_sent" && (
                   <Button
                     size="sm"
-                    onClick={() => handleMarkReceived(req._id)}
+                    onClick={() => handleMarkReceived(req.realId)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-5"
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
@@ -399,7 +561,7 @@ const handleApproveInventory = async (id: string) => {
               status === "pending_inventory_approval" && (
                 <Button
                   size="sm"
-                  onClick={() => handleApproveInventory(req._id)}
+                  onClick={() => handleApproveInventory(req.realId,  req.isStoreItem)}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-5"
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -412,7 +574,7 @@ const handleApproveInventory = async (id: string) => {
               <>
                 <Button
                   size="sm"
-                  onClick={() => handleApprove(req._id)}
+                  onClick={() => handleApprove(req.realId)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4"
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -421,7 +583,7 @@ const handleApproveInventory = async (id: string) => {
                 <Button
                   size="sm"
                   variant="destructive"
-                  onClick={() => handleReject(req._id)}
+                  onClick={() => handleReject(req.realId)}
                   className="px-4"
                 >
                   <XCircle className="mr-2 h-4 w-4" />

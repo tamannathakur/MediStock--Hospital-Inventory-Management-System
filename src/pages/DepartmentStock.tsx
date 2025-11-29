@@ -97,9 +97,6 @@ const DepartmentStock = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Vendor: <span className="font-medium">{item.vendor || "N/A"}</span>
-                  </p>
                   <p className="text-sm">
                     Quantity: <span className="font-bold">{item.quantity}</span>
                   </p>

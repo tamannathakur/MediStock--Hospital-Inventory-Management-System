@@ -196,7 +196,8 @@ const StorePage = () => {
                   <p>Quantity: {order.quantity}</p>
                   <p>Unit Price: ₹{order.unitPrice}</p>
                   <p>Total: ₹{order.totalCost || order.quantity * order.unitPrice}</p>
-                  <p>ETA: {order.etaHours ? `${order.etaHours} hrs` : "N/A"}</p>
+                  <p>ETA: {Number(order.etaHours) > 0 ? `${order.etaHours} hrs` : "N/A"}</p>
+
                   <p>Status: <span className="text-blue-600">{order.status}</span></p>
                 </div>
                 <div className="mt-3 md:mt-0 flex flex-col gap-2">

@@ -17,7 +17,7 @@ import DepartmentStock from "./pages/DepartmentStock";
 import Transactions from "./pages/Transactions";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import StorePage from "./pages/StorePage";
-
+import HomePage from "./pages/HomeScreen";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -27,7 +27,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Auth />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/homepage" element={<HomePage />} />
           <Route path="/auth" element={<Auth />} />
           <Route
             path="/dashboard"
@@ -38,6 +39,14 @@ const App = () => (
           }
           />
           <Route path="/products" element={<Products />} />
+          <Route
+  path="/homepage"
+  element={
+    <ProtectedRoute>
+      <HomePage />
+    </ProtectedRoute>
+  }
+/>
           <Route path="/requests" element={<Requests />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/central-stock" element={<CentralStock />} />

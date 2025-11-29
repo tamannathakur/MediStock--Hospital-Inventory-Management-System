@@ -74,7 +74,6 @@ const Layout = ({ children, userRole }: LayoutProps) => {
       { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
       { icon: Package, label: "Products", path: "/products" },
       { icon: FileText, label: "Requests", path: "/requests" },
-      { icon: AlertCircle, label: "Complaints", path: "/complaints" },
     ];
     switch (role) {
       case "inventory_staff":
@@ -88,7 +87,6 @@ const Layout = ({ children, userRole }: LayoutProps) => {
           ...commonNav,
           { icon: Building2, label: "Department Stock", path: "/department-stock" },
           { icon: Package, label: "Almirah", path: "/almirah" },
-          { icon: Activity, label: "Autoclaves", path: "/autoclaves" },
           { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
       case "hod":
@@ -101,9 +99,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
           { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
           { icon: Package, label: "My Almirah", path: "/almirah" },
           { icon: LayoutDashboard, label: "Products", path: "/products" },
-          { icon: Activity, label: "Autoclaves", path: "/autoclaves" },
           { icon: FileText, label: "Requests", path: "/requests" },
-          { icon: AlertCircle, label: "Complaints", path: "/complaints" },
           { icon: Activity, label: "Transactions", path: "/transactions" },
         ];
       default:

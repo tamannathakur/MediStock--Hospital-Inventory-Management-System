@@ -11,6 +11,7 @@ console.log("db connected");
 // Init Middleware
 app.use(cors());
 app.use(express.json({ extended: false }));
+console.log("📡 Mounting /api/requests routes...");
 
 // Define Routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -20,6 +21,8 @@ app.use('/api/autoclaves', require('./routes/autoclave'));
 app.use('/api/departments', require('./routes/departmentroutes'));
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use("/api/requests", require("./routes/requests"));
+
 app.use(require('./middleware/errorHandler'));
 const PORT = process.env.PORT || 5000;
 

@@ -86,6 +86,19 @@ export async function addAutoclaveItem(autoclaveId: string, productId: string) {
   });
 }
 
+export async function setVendorETA(id: string, vendorETA: number) {
+  return request(`/requests/${id}/approve-store-request`, {
+    method: "PUT",
+    body: JSON.stringify({ vendorETA })
+  });
+}
+
+export async function markVendorDelivered(id: string) {
+  return request(`/requests/${id}/vendor-received`, {
+    method: "PUT",
+  });
+}
+
 export async function updateAutoclaveItem(autoclaveId: string, itemId: string, data: any) {
   return request(`/autoclaves/${autoclaveId}/item/${itemId}`, {
     method: "PUT",
@@ -206,6 +219,14 @@ export async function createRequest(payload: {
   });
 }
 
+// 🏬 NEW: Create Store Request (multiple items)
+export async function createStoreRequest(payload: { items: { product: string; quantity: number }[] }) {
+  return request("/requests/store-request", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function updateRequestStatus(id: string, role: string) {
   let endpoint = `/requests/${id}`;
 
@@ -242,6 +263,17 @@ export async function getTransactions() {
 
   return await res.json();
 }
+export async function vendorReceived(id: string) {
+  return request(`/requests/${id}/vendor-received`, {
+    method: "PUT"
+  });
+}
+
+
+export async function approveStoreRequest(id) {
+  return request(`/requests/${id}/approve-store-request`, { method: "PUT" });
+}
+
 
 // 📤 Export transactions as Excel (returns blob)
 export async function exportTransactions(startDate, endDate) {
@@ -266,11 +298,13 @@ export async function exportTransactions(startDate, endDate) {
 
 
 
+
 export default {
   getTransactions,
   exportTransactions,
   login,
   register,
+  approveStoreRequest,
   getCurrentUserFromToken,
   getDashboardStats,
   getProfile, 
@@ -284,6 +318,7 @@ export default {
   resolveComplaint,
   listRequests,
   createRequest,
+  createStoreRequest,
   updateRequestStatus,
   useAlmirahItem,
   createStoreOrderBatch,
@@ -299,4 +334,7 @@ export default {
   listStoreOrders,
   createStoreOrder,
   markStoreOrderReceived,
+  markVendorDelivered,
+  vendorReceived,
+  setVendorETA
 };
