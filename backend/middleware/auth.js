@@ -25,7 +25,6 @@ const auth = (req, res, next) => {
       return res.status(401).json({ msg: "Invalid token payload" });
     }
 
-    console.log("🔐 req.user SET:", req.user);
     next();
 
   } catch (err) {

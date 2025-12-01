@@ -20,7 +20,6 @@ router.get("/", auth, async (req, res) => {
       .populate("product requestedBy approvedBy fulfilledBy")
       .sort({ createdAt: -1 });
 
-    console.log("📦 Returning Requests:", requests.length);
     res.status(200).json(requests);
 
   } catch (err) {

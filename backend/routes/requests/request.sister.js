@@ -17,24 +17,47 @@ router.put("/:id/approve-sister", auth, authorize(["sister_incharge"]), async (r
 
     // If this is a store_request, sister can't approve stock — escalate to HOD/inventory
     if (request.requestType === "store_request") {
-  request.status = "pending_hod";
-  request.approvedBy = req.user._id;
-  await request.save();
+  // 🧠 Department Check for BOTH department & store_request
+if (request.items?.length > 0) {
 
-  await Transaction.create({
-    from: { role: "sister_incharge" },
-    to: { role: "hod" },
-    request: request._id,
-    productId: null,
-    quantity: request.quantity,
-    initiatedBy: req.user.id,
-    status: "pending_hod",
-  });
+  // Store-request multi-item case
+  let fullyFulfilled = true;
 
-  return res.json({
-    msg: "Store request forwarded to HOD",
-    request
-  });
+  for (const item of request.items) {
+    const productDoc = await Product.findOne({ name: item.productName });
+    if (!productDoc) { fullyFulfilled = false; continue; }
+
+    const deptStock = await DepartmentInventory.findOne({ product: productDoc._id });
+
+    if (deptStock && deptStock.quantity >= item.quantity) {
+      // Deduct from department
+      deptStock.quantity -= item.quantity;
+      await deptStock.save();
+
+      // Add to nurse almirah
+      await addToAlmirah(request.requestedBy._id, productDoc._id, item.quantity);
+
+    } else {
+      fullyFulfilled = false;
+    }
+  }
+
+  if (fullyFulfilled) {
+    request.status = "fulfilled";
+    request.approvedBy = req.user._id;
+    request.fulfilledBy = req.user._id;
+    await request.save();
+    return res.json({ msg: "All items delivered from department stock!", request });
+  }
+
+}
+
+// If anything missing → escalate
+request.status = "pending_hod";
+request.approvedBy = req.user._id;
+await request.save();
+return res.json({ msg: "Not enough dept stock, sent to HOD", request });
+
 }
 
 
@@ -104,190 +127,6 @@ router.put("/:id/approve-sister", auth, authorize(["sister_incharge"]), async (r
     res.status(500).json({ msg: err.message });
   }
 });
-
-// Sister In-Charge marks as received (when central inventory sent items)
-// router.put("/:id/mark-received", auth, authorize(["sister_incharge"]), async (req, res) => {
-//   console.log("🔍 MARK-RECEIVED CALLED");
-//   console.log("🔐 AUTH HEADERS:", req.headers.authorization);
-//   console.log("🔐 req.user:", req.user);
-
-//   try {
-//     const request = await Request.findById(req.params.id).populate("product requestedBy");
-//     if (!request) return res.status(404).json({ msg: "Request not found" });
-
-//     if (!["approved_and_sent", "fulfilled"].includes(request.status)) {
-//       return res.status(400).json({ msg: "Request not ready to be marked received" });
-//     }
-
-//     request.status = "fulfilled";
-//     await request.save();
-
-//     // If sister had requested (dept), update DepartmentInventory
-//     if (request.requestedBy.role === "sister_incharge") {
-//       const deptItem = await DepartmentInventory.findOne({ product: request.product._id });
-//       if (deptItem) {
-//         deptItem.quantity += request.quantity;
-//         await deptItem.save();
-//       } else {
-//         await DepartmentInventory.create({
-//           product: request.product._id,
-//           quantity: request.quantity,
-//           category: request.product.category || "Others",
-//         });
-//       }
-//     }
-
-//     // If nurse requested, add to nurse almirah
-//     if (request.requestedBy.role === "nurse") {
-//       let almirah = await AlmirahInventory.findOne({ nurse: request.requestedBy._id });
-//       if (!almirah) {
-//         almirah = await AlmirahInventory.create({
-//           nurse: request.requestedBy._id,
-//           category: request.product.category || "Consumables",
-//           items: [],
-//         });
-//       }
-
-//       const existing = almirah.items.find(i => i.product.toString() === request.product._id.toString());
-//       if (existing) existing.quantity += request.quantity;
-//       else almirah.items.push({ product: request.product._id, quantity: request.quantity, expiry: request.product.expiryDate || null });
-
-//       await almirah.save();
-//     }
-
-//     await Transaction.create({
-//       from: { role: "department", departmentId: req.user.departmentId || null },
-//       to: { role: request.requestedBy.role === "nurse" ? "almirah" : "department" },
-//       productId: request.product._id,
-//       quantity: request.quantity,
-//       initiatedBy: req.user._id,
-//       receivedBy: request.requestedBy._id,
-//       request: request._id,
-//       status: "fulfilled",
-//     });
-
-//     res.json({ msg: "Items received and stored in appropriate inventory", request });
-
-//   } catch (err) {
-//     console.error("MARK RECEIVED ERROR:", err);
-//     res.status(500).json({ msg: err.message });
-//   }
-// });
-// Sister In-Charge marks as received (when central inventory sent items)
-
-// router.put("/:id/mark-received", auth, authorize(["sister_incharge"]), async (req, res) => {
-//   console.log("🔍 MARK-RECEIVED CALLED");
-//   console.log("🔐 req.user:", req.user);
-
-//   try {
-//     const request = await Request.findById(req.params.id)
-//       .populate("requestedBy items.productName");
-
-//     if (!request) return res.status(404).json({ msg: "Request not found" });
-
-//     // Request must be approved and sent from inventory
-//     if (!["approved_and_sent", "fulfilled"].includes(request.status)) {
-//       return res.status(400).json({ msg: "Request not ready to be marked received" });
-//     }
-
-//     request.status = "fulfilled";
-//     await request.save();
-
-//     // ========= MULTI ITEM STORE REQUEST LOGIC ==========
-//     if (request.requestType === "store_request" && Array.isArray(request.items)) {
-//       console.log("🧾 Handling Store Multi-Item Receive...");
-
-//       for (const item of request.items) {
-//         if (!item.product) continue;
-
-//         // Update nurse almirah
-//         let almirah = await AlmirahInventory.findOne({
-//           nurse: request.requestedBy._id
-//         });
-
-//         if (!almirah) {
-//           almirah = await AlmirahInventory.create({
-//             nurse: request.requestedBy._id,
-//             items: []
-//           });
-//         }
-
-//         const exists = almirah.items.find(
-//           i => i.product.toString() === item.product._id.toString()
-//         );
-
-//         if (exists) exists.quantity += item.quantity;
-//         else almirah.items.push({ product: item.product._id, quantity: item.quantity });
-
-//         await almirah.save();
-
-//         // Transaction per product line
-//         await Transaction.create({
-//           from: { role: "central_inventory" },
-//           to: { role: "department" },
-//           productId: item.product._id,
-//           quantity: item.quantity,
-//           initiatedBy: req.user.id,
-//           receivedBy: request.requestedBy._id,
-//           request: request._id,
-//           status: "fulfilled"
-//         });
-//       }
-
-//       return res.json({
-//         msg: "Store request items received & added to nurse almirah",
-//         request
-//       });
-//     }
-
-//     // ========= SINGLE PRODUCT NORMAL REQUEST ==========
-//     const product = request.product;
-//     if (!product) return res.json({ msg: "No product found", request });
-
-//     // Update almirah if nurse requested
-//     if (request.requestedBy.role === "nurse") {
-//       let almirah = await AlmirahInventory.findOne({
-//         nurse: request.requestedBy._id
-//       });
-
-//       if (!almirah) {
-//         almirah = await AlmirahInventory.create({
-//           nurse: request.requestedBy._id,
-//           items: []
-//         });
-//       }
-
-//       const exists = almirah.items.find(
-//         i => i.product.toString() === product._id.toString()
-//       );
-
-//       if (exists) exists.quantity += request.quantity;
-//       else almirah.items.push({ product: product._id, quantity: request.quantity });
-
-//       await almirah.save();
-//     }
-
-//     await Transaction.create({
-//       from: { role: "central_inventory" },
-//       to: { role: request.requestedBy.role === "nurse" ? "almirah" : "department" },
-//       productId: product._id,
-//       quantity: request.quantity,
-//       initiatedBy: req.user.id,
-//       receivedBy: request.requestedBy._id,
-//       request: request._id,
-//       status: "fulfilled"
-//     });
-
-//     res.json({
-//       msg: "Item received successfully",
-//       request
-//     });
-
-//   } catch (err) {
-//     console.error("MARK RECEIVED ERROR:", err);
-//     res.status(500).json({ msg: err.message });
-//   }
-// });
 
 router.put("/:id/mark-received", auth, authorize(["sister_incharge"]), async (req, res) => {
   try {
