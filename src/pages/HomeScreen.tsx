@@ -128,7 +128,7 @@ const LandingPage = () => {
                 <Stethoscope className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-teal-500">
-                Invora
+                MediStock
               </span>
             </div>
 
@@ -512,7 +512,7 @@ const LandingPage = () => {
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
           <h2 className="text-4xl font-bold mb-6">Ready to optimize your inventory?</h2>
           <p className="text-slate-300 text-lg mb-10">
-            Join the network of efficient hospitals using Invora to save lives and resources.
+            Join the network of efficient hospitals using MediStock to save lives and resources.
           </p>
           <div className="flex justify-center gap-4">
              <button 
@@ -532,7 +532,7 @@ const LandingPage = () => {
            <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
                  <Stethoscope className="w-5 h-5 text-blue-600" />
-                 <span className="text-lg font-bold text-white">Invora</span>
+                 <span className="text-lg font-bold text-white">MediStock</span>
               </div>
               <p className="max-w-xs text-sm">
                 Empowering healthcare professionals with tools to manage inventory efficiently, ensuring patient care never stops waiting for supplies.
@@ -542,7 +542,7 @@ const LandingPage = () => {
           
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-12 pt-8 border-t border-slate-900 text-center text-xs text-slate-600">
-           © 2025 Invora Systems. All rights reserved.
+           © 2025 MediStock Systems. All rights reserved.
         </div>
       </footer>
     </div>

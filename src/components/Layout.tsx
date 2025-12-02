@@ -119,7 +119,7 @@ const Layout = ({ children, userRole }: LayoutProps) => {
               <div className="rounded-lg bg-primary p-2">
                 <Activity className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">INVORA</span>
+              <span className="text-xl font-bold text-foreground">MediStock</span>
             </Link>
             
             {/* Desktop Navigation */}

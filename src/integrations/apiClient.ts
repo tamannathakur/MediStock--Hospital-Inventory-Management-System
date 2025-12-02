@@ -86,6 +86,15 @@ export async function addAutoclaveItem(autoclaveId: string, productId: string) {
   });
 }
 
+export async function uploadOCRImage(formData: FormData) {
+  return request(`/ocr`, {
+    method: "POST",
+    body: formData, // No JSON.stringify for files
+    // request() should auto handle multipart FormData
+  });
+}
+
+
 export async function setVendorETA(id: string, vendorETA: number) {
   return request(`/requests/${id}/approve-store-request`, {
     method: "PUT",
@@ -333,6 +342,7 @@ export default {
   markRequestReceived,
   listStoreOrders,
   createStoreOrder,
+  uploadOCRImage,
   markStoreOrderReceived,
   markVendorDelivered,
   vendorReceived,
