@@ -98,7 +98,7 @@ const Auth = () => {
             </div>
             <div>
               <CardTitle className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-teal-500">
-                Invora
+                MediStock
               </CardTitle>
               <CardDescription className="text-base text-slate-500 mt-2">
                 Secure access for hospital staff

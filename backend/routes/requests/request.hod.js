@@ -170,15 +170,11 @@ router.put("/:id/approve-hod", auth, authorize(["hod"]), async (req, res) => {
 
     let isStockAvailable = true;
 
-    // =========================================================
-    // 🔍 SCENARIO A: Multiple Items (Based on your Schema)
-    // =========================================================
     if (request.items && request.items.length > 0) {
       console.log(`📋 Checking Multiple Items by NAME (Count: ${request.items.length})`);
       
       for (const item of request.items) {
-        // 🛑 FIX: Search by 'name', because your schema uses 'productName', not IDs
-        // Note: Ensure your Product model actually has a 'name' field
+       
         const product = await Product.findOne({ name: item.productName });
 
         if (!product) {
@@ -196,29 +192,21 @@ router.put("/:id/approve-hod", auth, authorize(["hod"]), async (req, res) => {
         }
       }
     } 
-    // =========================================================
-    // 🔍 SCENARIO B: Single Product (Populated Object)
-    // =========================================================
+    
     else if (request.product && request.quantity) {
       console.log(`📦 Checking Single Product: ${request.product.name}`);
       
-      // request.product is already the full object due to .populate()
       if (request.product.totalQuantity < request.quantity) {
         console.log(`   🔻 Stock Low: Have ${request.product.totalQuantity}, Need ${request.quantity}`);
         isStockAvailable = false;
       }
     }
     else {
-      // Fallback if data is malformed
       console.log("⚠️ No valid items or product found in request");
       isStockAvailable = false;
     }
 
-    // =========================================================
-    // 🚦 DECISION LOGIC
-    // =========================================================
-
-    // 🔴 CASE 1: VENDOR REQUIRED
+    
     if (!isStockAvailable) {
       console.log("🚀 routing -> awaiting_vendor");
       
@@ -226,7 +214,6 @@ router.put("/:id/approve-hod", auth, authorize(["hod"]), async (req, res) => {
       request.vendorStatus = "awaiting_vendor";
       await request.save();
 
-      // Create Transaction Record
       await Transaction.create({
         from: { role: "hod" },
         to: { role: "inventory_staff" },
@@ -243,7 +230,7 @@ router.put("/:id/approve-hod", auth, authorize(["hod"]), async (req, res) => {
       });
     }
 
-    // 🟢 CASE 2: STOCK AVAILABLE
+   
     console.log("🚀 routing -> pending_inventory_approval");
     
     request.status = "pending_inventory_approval";

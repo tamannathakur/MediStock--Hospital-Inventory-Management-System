@@ -89,6 +89,60 @@ const removeStoreItemRow = (index) => {
   setStoreItems(updated);
 };
 
+const handleOCRUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  console.log("📤 Uploading to OCR:", file.name);
+
+  const fd = new FormData();
+  fd.append("image", file);
+
+  try {
+    const res = await fetch("http://localhost:5000/api/ocr", {
+      method: "POST",
+      body: fd
+    });
+
+    const text = await res.text();
+    console.log("📩 Raw OCR response text:", text);
+
+    if (!res.ok) throw new Error(text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      console.error("❌ Could NOT parse OCR JSON:", err);
+      throw new Error("Invalid JSON from backend");
+    }
+
+    console.log("🧾 Parsed JSON:", data);
+    const texts = data.texts || [];
+
+    // Convert texts → form items
+    const parsedItems = [];
+    for (let i = 0; i < texts.length; i += 2) {
+      parsedItems.push({
+        product: texts[i] ?? "",
+        quantity: texts[i + 1] ?? ""
+      });
+    }
+
+    console.log("📝 Parsed Items:", parsedItems);
+
+    setStoreItems(parsedItems);
+    setIsStoreDialogOpen(true);
+
+  } catch (err) {
+    console.error("🚨 OCR Upload Failed:", err);
+    toast({ title: "OCR failed", variant: "destructive" });
+  }
+};
+
+
+
+
 const handleSubmitStoreRequest = async () => {
   try {
     await apiClient.createStoreRequest({
@@ -120,13 +174,11 @@ const handleSubmitStoreRequest = async () => {
   const fetchRequests = async () => {
   try {
     const data = await apiClient.listRequests();
-    console.log("📌 RAW REQUESTS FROM API:", data);
 
     if (Array.isArray(data)) {
       const sorted = data.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      console.log("📌 SORTED REQUESTS:", sorted);
 
       setRequests(sorted);
     } else {
@@ -254,6 +306,22 @@ const handleApproveInventory = async (id: string, isStoreItem: boolean) => {
   <div className="flex gap-3">
 
     
+{["nurse", "sister_incharge"].includes(userRole?.toLowerCase()) && (
+    <Button
+      variant="default"
+      onClick={() => document.getElementById("ocr-upload").click()}
+    >
+      Upload Items 📷
+    </Button>
+)}
+
+<input
+  id="ocr-upload"
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={handleOCRUpload}
+/>
 
     {/* STORE REQUEST (inventory staff) */}
     <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
@@ -300,7 +368,7 @@ const handleApproveInventory = async (id: string, isStoreItem: boolean) => {
 
               {storeItems.length > 1 && (
                 <Button
-                  variant="destructive"
+                  variant="default"
                   size="sm"
                   onClick={() => removeStoreItemRow(index)}
                 >
@@ -390,10 +458,7 @@ const handleApproveInventory = async (id: string, isStoreItem: boolean) => {
 })
 
   .map((req) => {
-    console.log("🎯 CARD RENDER:", req);
-
     const productName = req.productName;
-
     const status = req.status?.toLowerCase().trim();
 
 
