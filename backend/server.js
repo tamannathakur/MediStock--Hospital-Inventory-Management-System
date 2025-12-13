@@ -27,9 +27,6 @@ app.use(cors()); // Enable CORS for all routes by default
 
 
 
-// -----------------------------------------------------
-// ROUTES (LOAD BEFORE ERROR HANDLER) — FIXED ORDER
-// -----------------------------------------------------
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/api/ocr', upload.single('image'), (req, res) => {
@@ -112,7 +109,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/stock', require('./routes/stock'));
-app.use('/api/autoclave', require('./routes/autoclave'));   // ONLY ONCE
+//app.use('/api/autoclave', require('./routes/autoclave'));   // ONLY ONCE
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/analytics', require('./routes/analytics'));
