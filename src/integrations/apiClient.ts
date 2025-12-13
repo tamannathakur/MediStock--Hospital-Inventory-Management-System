@@ -1,5 +1,5 @@
 
-const API_BASE = 'https://medistock-hospital-inventory-management-dlu1.onrender.com';
+const API_BASE = 'http://localhost:5000/api';
 
 type LoginResp = { token: string };
 
